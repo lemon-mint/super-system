@@ -1,2 +1,2 @@
-# super-system
+# SuperSystem
 Distributed System Tools ( replication, membership, gossip )
