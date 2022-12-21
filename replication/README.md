@@ -42,6 +42,8 @@ SuperSystem Use Replication Group Sharding to Provide Scalability
 
 # Normal Operation
 
+## On Propose
+
 1. A client sends a Propose to the primary
 ```
 Propose [
@@ -67,7 +69,7 @@ ELSE
 
 4. OperationNumber++
 
-5. n = OpNumber
+5. n = OperationNumber
 
 6. The primary node adds the Propose to the primary's log.
 
@@ -76,7 +78,7 @@ ELSE
 ```
 Prepare [
  ViewNumber: The view number.
- OpNumber: The operation number.
+ OperationNumber: The operation number.
  Operation: The operation to be performed.
  CommitNumber: The commit number.
 ]
@@ -85,3 +87,11 @@ Prepare [
 8. When the primary node receives a PrepareOK from a quorum of nodes, it commits the operation.
 
 9. CommitNumber = n
+
+## On Prepare
+
+1. When a node receives a Prepare, it checks if the Prepare is valid.
+
+2. If Prepare.ViewNumber != ViewNumber, the node ignores the Prepare.
+
+3. If Prepare.OperationNumber < CommitNumber, the node ignores the Prepare.
