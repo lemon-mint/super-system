@@ -60,8 +60,8 @@ func (m *Propose) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.ClientId != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.ClientId))
+	if m.ClientID != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.ClientID))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -110,8 +110,8 @@ func (m *ProposeReject) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.ClientId != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.ClientId))
+	if m.ClientID != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.ClientID))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -163,8 +163,8 @@ func (m *Prepare) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.OpNumber != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.OpNumber))
+	if m.OperationNumber != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.OperationNumber))
 		i--
 		dAtA[i] = 0x10
 	}
@@ -211,8 +211,8 @@ func (m *PrepareOK) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.OpNumber != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.OpNumber))
+	if m.OperationNumber != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.OperationNumber))
 		i--
 		dAtA[i] = 0x10
 	}
@@ -254,8 +254,8 @@ func (m *Message) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.PrepareOk != nil {
-		size, err := m.PrepareOk.MarshalToSizedBufferVT(dAtA[:i])
+	if m.PrepareOK != nil {
+		size, err := m.PrepareOK.MarshalToSizedBufferVT(dAtA[:i])
 		if err != nil {
 			return 0, err
 		}
@@ -309,11 +309,6 @@ func (m *Message) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0xa0
 	}
-	if m.Destination != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.Destination))
-		i--
-		dAtA[i] = 0x78
-	}
 	if m.Source != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.Source))
 		i--
@@ -344,8 +339,8 @@ func (m *Propose) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.ClientId != 0 {
-		n += 1 + sov(uint64(m.ClientId))
+	if m.ClientID != 0 {
+		n += 1 + sov(uint64(m.ClientID))
 	}
 	if m.SequenceNumber != 0 {
 		n += 1 + sov(uint64(m.SequenceNumber))
@@ -366,8 +361,8 @@ func (m *ProposeReject) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
-	if m.ClientId != 0 {
-		n += 1 + sov(uint64(m.ClientId))
+	if m.ClientID != 0 {
+		n += 1 + sov(uint64(m.ClientID))
 	}
 	if m.SequenceNumber != 0 {
 		n += 1 + sov(uint64(m.SequenceNumber))
@@ -391,8 +386,8 @@ func (m *Prepare) SizeVT() (n int) {
 	if m.ViewNumber != 0 {
 		n += 1 + sov(uint64(m.ViewNumber))
 	}
-	if m.OpNumber != 0 {
-		n += 1 + sov(uint64(m.OpNumber))
+	if m.OperationNumber != 0 {
+		n += 1 + sov(uint64(m.OperationNumber))
 	}
 	if m.Propose != nil {
 		l = m.Propose.SizeVT()
@@ -416,8 +411,8 @@ func (m *PrepareOK) SizeVT() (n int) {
 	if m.ViewNumber != 0 {
 		n += 1 + sov(uint64(m.ViewNumber))
 	}
-	if m.OpNumber != 0 {
-		n += 1 + sov(uint64(m.OpNumber))
+	if m.OperationNumber != 0 {
+		n += 1 + sov(uint64(m.OperationNumber))
 	}
 	if m.CommitNumber != 0 {
 		n += 1 + sov(uint64(m.CommitNumber))
@@ -440,9 +435,6 @@ func (m *Message) SizeVT() (n int) {
 	if m.Source != 0 {
 		n += 1 + sov(uint64(m.Source))
 	}
-	if m.Destination != 0 {
-		n += 1 + sov(uint64(m.Destination))
-	}
 	if m.Type != 0 {
 		n += 2 + sov(uint64(m.Type))
 	}
@@ -458,8 +450,8 @@ func (m *Message) SizeVT() (n int) {
 		l = m.Prepare.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
-	if m.PrepareOk != nil {
-		l = m.PrepareOk.SizeVT()
+	if m.PrepareOK != nil {
+		l = m.PrepareOK.SizeVT()
 		n += 2 + l + sov(uint64(l))
 	}
 	if m.unknownFields != nil {
@@ -505,9 +497,9 @@ func (m *Propose) UnmarshalVT(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ClientId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientID", wireType)
 			}
-			m.ClientId = 0
+			m.ClientID = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -517,7 +509,7 @@ func (m *Propose) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.ClientId |= uint64(b&0x7F) << shift
+				m.ClientID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -628,9 +620,9 @@ func (m *ProposeReject) UnmarshalVT(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ClientId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientID", wireType)
 			}
-			m.ClientId = 0
+			m.ClientID = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -640,7 +632,7 @@ func (m *ProposeReject) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.ClientId |= uint64(b&0x7F) << shift
+				m.ClientID |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -768,9 +760,9 @@ func (m *Prepare) UnmarshalVT(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OpNumber", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field OperationNumber", wireType)
 			}
-			m.OpNumber = 0
+			m.OperationNumber = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -780,7 +772,7 @@ func (m *Prepare) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.OpNumber |= uint64(b&0x7F) << shift
+				m.OperationNumber |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -912,9 +904,9 @@ func (m *PrepareOK) UnmarshalVT(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field OpNumber", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field OperationNumber", wireType)
 			}
-			m.OpNumber = 0
+			m.OperationNumber = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -924,7 +916,7 @@ func (m *PrepareOK) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.OpNumber |= uint64(b&0x7F) << shift
+				m.OperationNumber |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1033,25 +1025,6 @@ func (m *Message) UnmarshalVT(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.Source |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 15:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Destination", wireType)
-			}
-			m.Destination = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Destination |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1185,7 +1158,7 @@ func (m *Message) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 33:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field PrepareOk", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field PrepareOK", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -1212,10 +1185,10 @@ func (m *Message) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.PrepareOk == nil {
-				m.PrepareOk = &PrepareOK{}
+			if m.PrepareOK == nil {
+				m.PrepareOK = &PrepareOK{}
 			}
-			if err := m.PrepareOk.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+			if err := m.PrepareOK.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
