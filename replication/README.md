@@ -90,8 +90,9 @@ Prepare [
 
 ## On Prepare
 
-1. When a node receives a Prepare, it checks if the Prepare is valid.
+1. When a node receives a Prepare, it checks if all the earlier operations exist in the log.
 
 2. If Prepare.ViewNumber != ViewNumber, the node ignores the Prepare.
 
-3. If Prepare.OperationNumber < CommitNumber, the node ignores the Prepare.
+3. If Prepare.OperationNumber <= CommitNumber, the node ignores the Prepare.
+

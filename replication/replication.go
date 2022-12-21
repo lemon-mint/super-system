@@ -34,12 +34,14 @@ type ReplicationGroup struct {
 	Lock     sync.Mutex
 	Loopback []*vsrproto.Message
 
-	Nodes           []Node
-	OperationNumber uint64
-	ViewNumber      uint64
-	CommitNumber    uint64
-	ClientTable     []uint64
-	ClientTimeout   []uint64
+	Nodes            []Node
+	Status           Status
+	OperationNumber  uint64
+	ViewNumber       uint64
+	CommitNumber_MIN uint64
+	CommitNumber_MAX uint64
+	ClientTable      []uint64
+	ClientTimeout    []uint64
 }
 
 func (rg *ReplicationGroup) Quorum() int {
@@ -89,7 +91,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 				ViewNumber:      rg.ViewNumber,
 				OperationNumber: n,
 				Propose:         propose,
-				CommitNumber:    rg.CommitNumber,
+				CommitNumber:    rg.CommitNumber_MIN,
 			},
 		}
 
@@ -98,9 +100,27 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 
 		// TODO: Wait for quorum of prepares
 		// Commit
-		rg.CommitNumber = n
+		rg.CommitNumber_MAX = n
 	case vsrproto.MessageType_MPrepare:
+		if rg.Status != Status_Normal {
+			// Ignore prepares during view change or recovery
+			return nil
+		}
 
+		prepare := msg.Prepare
+		if prepare == nil {
+			return ErrInvalidMessage
+		}
+
+		if prepare.ViewNumber != rg.ViewNumber {
+			// Ignore prepares from other views
+			return nil
+		}
+
+		if prepare.OperationNumber <= rg.CommitNumber_MIN {
+			// Ignore prepares for already committed operations
+			return nil
+		}
 	}
 
 	return nil
