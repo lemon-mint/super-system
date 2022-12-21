@@ -1,0 +1,11 @@
+version: v1
+plugins:
+  - name: go
+    out: .
+    opt: paths=source_relative
+  - name: go-vtproto
+    out: .
+    opt:
+      - paths=source_relative
+      - features=pool+marshal+unmarshal+size
+      # - pool=v8.run/go/dsys/proto.Address
