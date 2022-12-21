@@ -4,11 +4,6 @@ package vsrproto;
 
 option go_package = "v8.run/go/supersystem/replication/vsrproto";
 
-enum MessageType {
-  MPropose = 0;
-  MProposeReject = 1;
-}
-
 message Propose {
   uint64 client_id = 1;
   uint64 sequence_number = 2;
@@ -19,4 +14,36 @@ message ProposeReject {
   uint64 client_id = 1;
   uint64 sequence_number = 2;
   string reason = 3;
+}
+
+message Prepare {
+  uint64 view_number = 1;
+  uint64 op_number = 2;
+  Propose propose = 3;
+  uint64 commit_number = 4;
+}
+
+message PrepareOK {
+  uint64 view_number = 1;
+  uint64 op_number = 2;
+  uint64 commit_number = 3;
+}
+
+enum MessageType {
+  MPropose = 0;
+  MProposeReject = 1;
+  MPrepare = 2;
+  MPrepareOK = 3;
+}
+
+message Message {
+  uint64 GroupID = 5;
+  uint64 Source = 10;
+  uint64 Destination = 15;
+
+  MessageType type = 20;
+  optional Propose propose = 30;
+  optional ProposeReject propose_reject = 31;
+  optional Prepare prepare = 32;
+  optional PrepareOK prepare_ok = 33;
 }

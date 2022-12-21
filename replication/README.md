@@ -73,12 +73,14 @@ ELSE
 
 7. The primary node sends a Prepare to all the other nodes in the cluster.
 
+```
 Prepare [
  ViewNumber: The view number.
  OpNumber: The operation number.
  Operation: The operation to be performed.
  CommitNumber: The commit number.
 ]
+```
 
 8. When the primary node receives a PrepareOK from a quorum of nodes, it commits the operation.
 
