@@ -1,4 +1,22 @@
 syntax = "proto3";
 
-option go_package="v8.run/go/supersystem/replication/vsrproto";
 package vsrproto;
+
+option go_package = "v8.run/go/supersystem/replication/vsrproto";
+
+enum MessageType {
+  MPropose = 0;
+  MProposeReject = 1;
+}
+
+message Propose {
+  uint64 client_id = 1;
+  uint64 sequence_number = 2;
+  bytes operation = 3;
+}
+
+message ProposeReject {
+  uint64 client_id = 1;
+  uint64 sequence_number = 2;
+  string reason = 3;
+}
