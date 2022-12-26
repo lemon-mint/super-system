@@ -26,6 +26,11 @@ const (
 	Status_Recovering
 )
 
+type ClientT struct {
+	SequenceNumber uint64
+	Last           *vsrproto.Message
+}
+
 type ReplicationGroup struct {
 	GroupID uint64
 	Config  *Config
@@ -40,8 +45,7 @@ type ReplicationGroup struct {
 	ViewNumber       uint64
 	CommitNumber_MIN uint64
 	CommitNumber_MAX uint64
-	ClientTable      []uint64
-	ClientTimeout    []uint64
+	ClientTable      map[uint64]*ClientT
 }
 
 func (rg *ReplicationGroup) Quorum() int {
@@ -74,11 +78,11 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			return ErrInvalidClient
 		}
 
-		if rg.ClientTable[clientid] >= propose.SequenceNumber {
+		if rg.ClientTable[clientid].SequenceNumber >= propose.SequenceNumber {
 			// TODO: Reject duplicate proposals
 			return nil
 		}
-		rg.ClientTable[clientid] = propose.SequenceNumber
+		rg.ClientTable[clientid].SequenceNumber = propose.SequenceNumber
 
 		rg.OperationNumber++
 		n := rg.OperationNumber
