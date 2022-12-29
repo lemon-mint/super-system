@@ -112,6 +112,10 @@ func (rg *ReplicationGroup) Quorum() uint64 {
 	return uint64(len(rg.Nodes)/2 + 1)
 }
 
+func (rg *ReplicationGroup) Leader() uint64 {
+	return rg.Nodes[rg.ViewNumber%uint64(len(rg.Nodes))].ID
+}
+
 func (rg *ReplicationGroup) Tick() error {
 	rg.Lock.Lock()
 	defer rg.Lock.Unlock()
@@ -128,10 +132,15 @@ var (
 func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 	switch msg.Type {
 	case vsrproto.MessageType_MPropose:
+		if rg.Leader() != rg.Config.NodeID {
+			return nil
+		}
+
 		propose := msg.Propose
 		if propose == nil {
 			return ErrInvalidMessage
 		}
+
 		client, ok := rg.ClientTable[propose.ClientID]
 		if !ok {
 			return ErrInvalidClient
@@ -205,6 +214,10 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 	case vsrproto.MessageType_MPrepareOK:
 		if rg.Status != Status_Normal {
 			// Ignore prepares during view change or recovery
+			return nil
+		}
+
+		if rg.Leader() != rg.Config.NodeID {
 			return nil
 		}
 
