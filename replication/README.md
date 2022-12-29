@@ -24,7 +24,7 @@ When Precise Clocks are available (like Atomic Clocks), Linearizable Consistency
 
 When Replication Group Sharding is disabled, SuperSystem uses a single replication group for all data, in this case, Linearizable Consistency is available even if Precise Clocks are not available.
 
-When Linearizable Mode is enabled, SuperSystem waits for clock boundaries to ensure that all operations are ordered in the same order on all nodes.
+When Linearizable Mode is enabled, SuperSystem waits for clock boundaries to ensure that all operations are ordered correctly.
 
 ## High Throughput Mode
 
@@ -77,10 +77,10 @@ ELSE
 
 ```
 Prepare [
- ViewNumber: The view number.
- OperationNumber: The operation number.
- Operation: The operation to be performed.
- CommitNumber: The commit number.
+    ViewNumber: The view number.
+    OperationNumber: The operation number.
+    Operation: The operation to be performed.
+    CommitNumber: The commit number.
 ]
 ```
 

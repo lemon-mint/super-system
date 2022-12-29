@@ -31,31 +31,90 @@ type ClientT struct {
 	Last           *vsrproto.Message
 }
 
+type CommitT struct {
+	Index uint64
+	N     uint64
+}
+
+type CommitTable struct {
+	Table            []CommitT
+	CommitNumber_MAX uint64
+	CommitNumber_MIN uint64
+	Offset           uint64
+}
+
+func (ct *CommitTable) Add(index uint64, n uint64) {
+	ct.Table = append(ct.Table, CommitT{index, n})
+}
+
+func (ct *CommitTable) update(quorum uint64) {
+	// Update CommitNumber_MIN
+	for m := ct.CommitNumber_MIN + 1; m <= ct.CommitNumber_MAX; m++ {
+		if uint64(len(ct.Table)) <= m-ct.Offset {
+			break
+		}
+
+		if ct.Table[m-ct.Offset].Index != m {
+			panic("unreachable")
+		}
+
+		if ct.Table[m-ct.Offset].N < quorum {
+			break
+		}
+		ct.CommitNumber_MIN = m
+	}
+}
+
+func (ct *CommitTable) Commit(index uint64, quorum uint64) bool {
+	if uint64(len(ct.Table)) <= index-ct.Offset {
+		return false
+	}
+
+	if ct.Table[index-ct.Offset].Index != index {
+		panic("unreachable")
+	}
+	ct.Table[index-ct.Offset].N++
+
+	if ct.Table[index-ct.Offset].N >= quorum {
+		if index > ct.CommitNumber_MAX {
+			ct.CommitNumber_MAX = index
+		}
+		ct.update(quorum)
+		return true
+	}
+
+	return false
+}
+
 type ReplicationGroup struct {
 	GroupID uint64
 	Config  *Config
 
-	Clock    Clock
-	Lock     sync.Mutex
-	Loopback []*vsrproto.Message
+	Log          LogStore[[]byte]
+	Clock        Clock
+	Lock         sync.Mutex
+	Loopback     []*vsrproto.Message
+	MessageQueue []*vsrproto.Message
 
-	Nodes            []Node
-	Status           Status
-	OperationNumber  uint64
-	ViewNumber       uint64
-	CommitNumber_MIN uint64
-	CommitNumber_MAX uint64
-	ClientTable      map[uint64]*ClientT
+	BroadcastQueue []*vsrproto.Message
+	PushQueue      []*vsrproto.Message
+
+	Nodes           []Node
+	Status          Status
+	OperationNumber uint64
+	ViewNumber      uint64
+
+	CommitTable CommitTable
+	ClientTable map[uint64]*ClientT
 }
 
-func (rg *ReplicationGroup) Quorum() int {
-	return len(rg.Nodes)/2 + 1
+func (rg *ReplicationGroup) Quorum() uint64 {
+	return uint64(len(rg.Nodes)/2 + 1)
 }
 
 func (rg *ReplicationGroup) Tick() error {
 	rg.Lock.Lock()
 	defer rg.Lock.Unlock()
-
 	rg.Clock.Tick()
 
 	return nil
@@ -73,19 +132,34 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 		if propose == nil {
 			return ErrInvalidMessage
 		}
-		clientid := propose.ClientID
-		if clientid >= uint64(len(rg.ClientTable)) {
+		client, ok := rg.ClientTable[propose.ClientID]
+		if !ok {
 			return ErrInvalidClient
 		}
 
-		if rg.ClientTable[clientid].SequenceNumber >= propose.SequenceNumber {
-			// TODO: Reject duplicate proposals
+		if client.SequenceNumber >= propose.SequenceNumber {
+			if client.SequenceNumber == propose.SequenceNumber &&
+				client.Last != nil {
+				rg.PushQueue = append(rg.PushQueue, client.Last)
+				return nil
+			}
+			duplicate := &vsrproto.Message{
+				GroupID: rg.GroupID,
+				Source:  rg.Config.NodeID,
+				Type:    vsrproto.MessageType_MProposeReject,
+				ProposeReject: &vsrproto.ProposeReject{
+					ClientID:       propose.ClientID,
+					SequenceNumber: propose.SequenceNumber,
+					Error:          vsrproto.Error_EDupPropose,
+				},
+			}
+			rg.PushQueue = append(rg.PushQueue, duplicate)
 			return nil
 		}
-		rg.ClientTable[clientid].SequenceNumber = propose.SequenceNumber
 
 		rg.OperationNumber++
 		n := rg.OperationNumber
+
 		prepare := &vsrproto.Message{
 			GroupID: rg.GroupID,
 			Source:  rg.Config.NodeID,
@@ -95,16 +169,18 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 				ViewNumber:      rg.ViewNumber,
 				OperationNumber: n,
 				Propose:         propose,
-				CommitNumber:    rg.CommitNumber_MIN,
+				CommitNumber:    rg.CommitTable.CommitNumber_MIN,
 			},
 		}
 
-		// TODO: Send prepare to all nodes
-		rg.Loopback = append(rg.Loopback, prepare)
+		err := rg.Log.Append(propose.Operation, n)
+		if err != nil {
+			return err
+		}
+		client.SequenceNumber = propose.SequenceNumber
 
-		// TODO: Wait for quorum of prepares
-		// Commit
-		rg.CommitNumber_MAX = n
+		rg.Loopback = append(rg.Loopback, prepare)
+		rg.BroadcastQueue = append(rg.BroadcastQueue, prepare)
 	case vsrproto.MessageType_MPrepare:
 		if rg.Status != Status_Normal {
 			// Ignore prepares during view change or recovery
@@ -121,10 +197,28 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			return nil
 		}
 
-		if prepare.OperationNumber <= rg.CommitNumber_MIN {
+		if prepare.OperationNumber <= rg.CommitTable.CommitNumber_MIN {
 			// Ignore prepares for already committed operations
 			return nil
 		}
+
+	case vsrproto.MessageType_MPrepareOK:
+		if rg.Status != Status_Normal {
+			// Ignore prepares during view change or recovery
+			return nil
+		}
+
+		prepareOK := msg.PrepareOK
+		if prepareOK == nil {
+			return ErrInvalidMessage
+		}
+
+		if prepareOK.ViewNumber != rg.ViewNumber {
+			// Ignore prepares from other views
+			return nil
+		}
+
+		rg.CommitTable.Commit(prepareOK.OperationNumber, uint64(rg.Quorum()))
 	}
 
 	return nil
