@@ -86,6 +86,11 @@ func (ct *CommitTable) Commit(index uint64, quorum uint64) bool {
 	return false
 }
 
+type Transport interface {
+	Send(msg *vsrproto.Message, dst uint64) error
+	Broadcast(msg *vsrproto.Message) error
+}
+
 type ReplicationGroup struct {
 	GroupID uint64
 	Config  *Config
@@ -96,8 +101,7 @@ type ReplicationGroup struct {
 	Loopback     []*vsrproto.Message
 	MessageQueue []*vsrproto.Message
 
-	BroadcastQueue []*vsrproto.Message
-	PushQueue      []*vsrproto.Message
+	Transport Transport
 
 	Nodes           []Node
 	Status          Status
@@ -149,7 +153,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 		if client.SequenceNumber >= propose.SequenceNumber {
 			if client.SequenceNumber == propose.SequenceNumber &&
 				client.Last != nil {
-				rg.PushQueue = append(rg.PushQueue, client.Last)
+				rg.Transport.Send(client.Last, propose.ClientID)
 				return nil
 			}
 			duplicate := &vsrproto.Message{
@@ -162,7 +166,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 					Error:          vsrproto.Error_EDupPropose,
 				},
 			}
-			rg.PushQueue = append(rg.PushQueue, duplicate)
+			rg.Transport.Send(duplicate, propose.ClientID)
 			return nil
 		}
 
@@ -189,7 +193,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 		client.SequenceNumber = propose.SequenceNumber
 
 		rg.Loopback = append(rg.Loopback, prepare)
-		rg.BroadcastQueue = append(rg.BroadcastQueue, prepare)
+		rg.Transport.Broadcast(prepare)
 	case vsrproto.MessageType_MPrepare:
 		if rg.Status != Status_Normal {
 			// Ignore prepares during view change or recovery
@@ -209,6 +213,28 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 		if prepare.OperationNumber <= rg.CommitTable.CommitNumber_MIN {
 			// Ignore prepares for already committed operations
 			return nil
+		}
+
+		err := rg.Log.Append(prepare.Propose.Operation, prepare.OperationNumber)
+		if err != nil {
+			return err
+		}
+
+		prepareOK := &vsrproto.Message{
+			GroupID: rg.GroupID,
+			Source:  rg.Config.NodeID,
+			Type:    vsrproto.MessageType_MPrepareOK,
+			PrepareOK: &vsrproto.PrepareOK{
+				ViewNumber:      rg.ViewNumber,
+				OperationNumber: prepare.OperationNumber,
+				CommitNumber:    rg.CommitTable.CommitNumber_MIN,
+			},
+		}
+
+		if rg.Leader() == rg.Config.NodeID {
+			rg.Loopback = append(rg.Loopback, prepareOK)
+		} else {
+			rg.Transport.Send(prepareOK, rg.Leader())
 		}
 
 	case vsrproto.MessageType_MPrepareOK:
