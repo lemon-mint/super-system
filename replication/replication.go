@@ -217,6 +217,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 
 		err := rg.Log.Append(prepare.Propose.Operation, prepare.OperationNumber)
 		if err != nil {
+			// TODO: use state transfer to recover missing operations
 			return err
 		}
 
