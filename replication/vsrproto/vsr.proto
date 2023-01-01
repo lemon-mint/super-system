@@ -34,13 +34,13 @@ message Prepare {
   uint64 ViewNumber = 1;
   uint64 OperationNumber = 2;
   Propose Propose = 3;
-  uint64 CommitNumber = 4;
+  uint64 CommitNumber_MAX = 4;
+  uint64 CommitNumber_MIN = 5;
 }
 
 message PrepareOK {
   uint64 ViewNumber = 1;
   uint64 OperationNumber = 2;
-  uint64 CommitNumber = 3;
 }
 
 message PrepareReject {
@@ -51,7 +51,8 @@ message PrepareReject {
 
 message Commit {
   uint64 ViewNumber = 1;
-  uint64 CommitNumber = 3;
+  uint64 CommitNumber_MAX = 2;
+  uint64 CommitNumber_MIN = 3;
 }
 
 enum MessageType {

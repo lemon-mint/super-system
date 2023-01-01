@@ -196,8 +196,13 @@ func (m *Prepare) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.CommitNumber != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.CommitNumber))
+	if m.CommitNumber_MIN != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CommitNumber_MIN))
+		i--
+		dAtA[i] = 0x28
+	}
+	if m.CommitNumber_MAX != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CommitNumber_MAX))
 		i--
 		dAtA[i] = 0x20
 	}
@@ -253,11 +258,6 @@ func (m *PrepareOK) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	if m.unknownFields != nil {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
-	}
-	if m.CommitNumber != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.CommitNumber))
-		i--
-		dAtA[i] = 0x18
 	}
 	if m.OperationNumber != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.OperationNumber))
@@ -350,10 +350,15 @@ func (m *Commit) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.CommitNumber != 0 {
-		i = encodeVarint(dAtA, i, uint64(m.CommitNumber))
+	if m.CommitNumber_MIN != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CommitNumber_MIN))
 		i--
 		dAtA[i] = 0x18
+	}
+	if m.CommitNumber_MAX != 0 {
+		i = encodeVarint(dAtA, i, uint64(m.CommitNumber_MAX))
+		i--
+		dAtA[i] = 0x10
 	}
 	if m.ViewNumber != 0 {
 		i = encodeVarint(dAtA, i, uint64(m.ViewNumber))
@@ -577,8 +582,11 @@ func (m *Prepare) SizeVT() (n int) {
 		l = m.Propose.SizeVT()
 		n += 1 + l + sov(uint64(l))
 	}
-	if m.CommitNumber != 0 {
-		n += 1 + sov(uint64(m.CommitNumber))
+	if m.CommitNumber_MAX != 0 {
+		n += 1 + sov(uint64(m.CommitNumber_MAX))
+	}
+	if m.CommitNumber_MIN != 0 {
+		n += 1 + sov(uint64(m.CommitNumber_MIN))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -597,9 +605,6 @@ func (m *PrepareOK) SizeVT() (n int) {
 	}
 	if m.OperationNumber != 0 {
 		n += 1 + sov(uint64(m.OperationNumber))
-	}
-	if m.CommitNumber != 0 {
-		n += 1 + sov(uint64(m.CommitNumber))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -637,8 +642,11 @@ func (m *Commit) SizeVT() (n int) {
 	if m.ViewNumber != 0 {
 		n += 1 + sov(uint64(m.ViewNumber))
 	}
-	if m.CommitNumber != 0 {
-		n += 1 + sov(uint64(m.CommitNumber))
+	if m.CommitNumber_MAX != 0 {
+		n += 1 + sov(uint64(m.CommitNumber_MAX))
+	}
+	if m.CommitNumber_MIN != 0 {
+		n += 1 + sov(uint64(m.CommitNumber_MIN))
 	}
 	if m.unknownFields != nil {
 		n += len(m.unknownFields)
@@ -1156,9 +1164,9 @@ func (m *Prepare) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 4:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber_MAX", wireType)
 			}
-			m.CommitNumber = 0
+			m.CommitNumber_MAX = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -1168,7 +1176,26 @@ func (m *Prepare) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.CommitNumber |= uint64(b&0x7F) << shift
+				m.CommitNumber_MAX |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber_MIN", wireType)
+			}
+			m.CommitNumber_MIN = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CommitNumber_MIN |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1258,25 +1285,6 @@ func (m *PrepareOK) UnmarshalVT(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.OperationNumber |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber", wireType)
-			}
-			m.CommitNumber = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.CommitNumber |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -1459,11 +1467,11 @@ func (m *Commit) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
-		case 3:
+		case 2:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber_MAX", wireType)
 			}
-			m.CommitNumber = 0
+			m.CommitNumber_MAX = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -1473,7 +1481,26 @@ func (m *Commit) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.CommitNumber |= uint64(b&0x7F) << shift
+				m.CommitNumber_MAX |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitNumber_MIN", wireType)
+			}
+			m.CommitNumber_MIN = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CommitNumber_MIN |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

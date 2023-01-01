@@ -182,10 +182,11 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 
 			Type: vsrproto.MessageType_MPrepare,
 			Prepare: &vsrproto.Prepare{
-				ViewNumber:      rg.ViewNumber,
-				OperationNumber: n,
-				Propose:         propose,
-				CommitNumber:    rg.CommitTable.CommitNumber_MIN,
+				ViewNumber:       rg.ViewNumber,
+				OperationNumber:  n,
+				Propose:          propose,
+				CommitNumber_MIN: rg.CommitTable.CommitNumber_MIN,
+				CommitNumber_MAX: rg.CommitTable.CommitNumber_MAX,
 			},
 		}
 
@@ -231,7 +232,6 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			PrepareOK: &vsrproto.PrepareOK{
 				ViewNumber:      rg.ViewNumber,
 				OperationNumber: prepare.OperationNumber,
-				CommitNumber:    rg.CommitTable.CommitNumber_MIN,
 			},
 		}
 
@@ -280,7 +280,7 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			return nil
 		}
 
-		if commit.CommitNumber <= rg.CommitTable.CommitNumber_MIN {
+		if commit.CommitNumber_MIN <= rg.CommitTable.CommitNumber_MIN {
 			// Ignore commits for already committed operations
 			return nil
 		}
@@ -290,14 +290,14 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			return err
 		}
 
-		if last < commit.CommitNumber {
+		if last < commit.CommitNumber_MIN {
 			// TODO: use state transfer to recover missing operations
 			return nil
 		}
 
 		if rg.Leader() != rg.Config.NodeID {
-			rg.CommitTable.CommitNumber_MAX = commit.CommitNumber
-			rg.CommitTable.CommitNumber_MIN = commit.CommitNumber
+			rg.CommitTable.CommitNumber_MAX = commit.CommitNumber_MAX
+			rg.CommitTable.CommitNumber_MIN = commit.CommitNumber_MIN
 			return nil
 		}
 	}
