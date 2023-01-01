@@ -110,6 +110,9 @@ type ReplicationGroup struct {
 
 	CommitTable CommitTable
 	ClientTable map[uint64]*ClientT
+
+	HeartbeatDeadline  uint64
+	ViewChangeDeadline uint64
 }
 
 func (rg *ReplicationGroup) Quorum() uint64 {
@@ -238,6 +241,8 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 			rg.Transport.Send(prepareOK, rg.Leader())
 		}
 
+		// Reset the heartbeat deadline
+		rg.HeartbeatDeadline = rg.Clock.NowTicks() + rg.Config.HeartbeatTimeout
 	case vsrproto.MessageType_MPrepareOK:
 		if rg.Status != Status_Normal {
 			// Ignore prepares during view change or recovery
@@ -259,6 +264,42 @@ func (rg *ReplicationGroup) processMessage(msg *vsrproto.Message) error {
 		}
 
 		rg.CommitTable.Commit(prepareOK.OperationNumber, uint64(rg.Quorum()))
+	case vsrproto.MessageType_MCommit:
+		if rg.Status != Status_Normal {
+			// Ignore commits during view change or recovery
+			return nil
+		}
+
+		commit := msg.Commit
+		if commit == nil {
+			return ErrInvalidMessage
+		}
+
+		if commit.ViewNumber != rg.ViewNumber {
+			// Ignore commits from other views
+			return nil
+		}
+
+		if commit.CommitNumber <= rg.CommitTable.CommitNumber_MIN {
+			// Ignore commits for already committed operations
+			return nil
+		}
+
+		last, err := rg.Log.LastIndex()
+		if err != nil {
+			return err
+		}
+
+		if last < commit.CommitNumber {
+			// TODO: use state transfer to recover missing operations
+			return nil
+		}
+
+		if rg.Leader() != rg.Config.NodeID {
+			rg.CommitTable.CommitNumber_MAX = commit.CommitNumber
+			rg.CommitTable.CommitNumber_MIN = commit.CommitNumber
+			return nil
+		}
 	}
 
 	return nil

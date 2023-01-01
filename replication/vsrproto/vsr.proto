@@ -49,11 +49,18 @@ message PrepareReject {
   Error Error = 3;
 }
 
+message Commit {
+  uint64 ViewNumber = 1;
+  uint64 CommitNumber = 3;
+}
+
 enum MessageType {
   MPropose = 0;
   MProposeReject = 1;
   MPrepare = 2;
   MPrepareOK = 3;
+  MPrepareReject = 4;
+  MCommit = 5;
 }
 
 message Message {
@@ -65,4 +72,6 @@ message Message {
   optional ProposeReject ProposeReject = 31;
   optional Prepare Prepare = 32;
   optional PrepareOK PrepareOK = 33;
+  optional PrepareReject PrepareReject = 34;
+  optional Commit Commit = 35;
 }
