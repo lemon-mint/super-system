@@ -126,7 +126,21 @@ func (rg *ReplicationGroup) Leader() uint64 {
 func (rg *ReplicationGroup) Tick() error {
 	rg.Lock.Lock()
 	defer rg.Lock.Unlock()
+
 	rg.Clock.Tick()
+	switch rg.Status {
+	case Status_Normal:
+		if rg.Clock.NowTicks() >= rg.HeartbeatDeadline {
+			rg.Status = Status_ViewChange
+			rg.ViewChangeDeadline = rg.Clock.NowTicks() + rg.Config.ViewChangeTimeout
+			// TODO: Broadcast StartViewChange
+		}
+	case Status_ViewChange:
+		if rg.Clock.NowTicks() >= rg.ViewChangeDeadline {
+			rg.ViewNumber++
+			rg.ViewChangeDeadline = rg.Clock.NowTicks() + rg.Config.ViewChangeTimeout
+		}
+	}
 
 	return nil
 }
