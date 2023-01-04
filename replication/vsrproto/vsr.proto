@@ -82,6 +82,9 @@ enum MessageType {
   MPrepareOK = 3;
   MPrepareReject = 4;
   MCommit = 5;
+  MStartViewChange = 6;
+  MDoViewChange = 7;
+  MStartView = 8;
 }
 
 message Message {
@@ -95,4 +98,7 @@ message Message {
   optional PrepareOK PrepareOK = 33;
   optional PrepareReject PrepareReject = 34;
   optional Commit Commit = 35;
+  optional StartViewChange StartViewChange = 36;
+  optional DoViewChange DoViewChange = 37;
+  optional StartView StartView = 38;
 }

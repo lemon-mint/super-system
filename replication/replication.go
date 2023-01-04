@@ -133,7 +133,14 @@ func (rg *ReplicationGroup) Tick() error {
 		if rg.Clock.NowTicks() >= rg.HeartbeatDeadline {
 			rg.Status = Status_ViewChange
 			rg.ViewChangeDeadline = rg.Clock.NowTicks() + rg.Config.ViewChangeTimeout
-			// TODO: Broadcast StartViewChange
+			rg.Transport.Broadcast(&vsrproto.Message{
+				GroupID: rg.GroupID,
+				Source:  rg.Config.NodeID,
+				Type:    vsrproto.MessageType_MStartViewChange,
+				StartViewChange: &vsrproto.StartViewChange{
+					ViewNumber: rg.ViewNumber,
+				},
+			})
 		}
 	case Status_ViewChange:
 		if rg.Clock.NowTicks() >= rg.ViewChangeDeadline {
