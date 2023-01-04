@@ -132,6 +132,7 @@ func (rg *ReplicationGroup) Tick() error {
 	case Status_Normal:
 		if rg.Clock.NowTicks() >= rg.HeartbeatDeadline {
 			rg.Status = Status_ViewChange
+			rg.ViewNumber++
 			rg.ViewChangeDeadline = rg.Clock.NowTicks() + rg.Config.ViewChangeTimeout
 			rg.Transport.Broadcast(&vsrproto.Message{
 				GroupID: rg.GroupID,
