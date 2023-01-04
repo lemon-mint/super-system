@@ -55,6 +55,26 @@ message Commit {
   uint64 CommitNumber_MIN = 3;
 }
 
+message StartViewChange {
+  uint64 ViewNumber = 1;
+}
+
+message DoViewChange {
+  uint64 ViewNumber = 1;
+  uint64 EpochNumber = 2;
+  uint64 CommitNumber_MAX = 3;
+  uint64 CommitNumber_MIN = 4;
+  repeated PrepareOK PrepareOKs = 5;
+}
+
+message StartView {
+  uint64 ViewNumber = 1;
+  uint64 EpochNumber = 2;
+  uint64 CommitNumber_MAX = 3;
+  uint64 CommitNumber_MIN = 4;
+  repeated PrepareOK PrepareOKs = 5;
+}
+
 enum MessageType {
   MPropose = 0;
   MProposeReject = 1;
