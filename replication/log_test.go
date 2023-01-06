@@ -14,7 +14,7 @@ func assertnil(t *testing.T, err error) {
 }
 
 func TestLogAppend(t *testing.T) {
-	ls := replication.LogStore[*vsrproto.Message]{}
+	ls := replication.MemoryLog[*vsrproto.Message]{}
 	msg := &vsrproto.Message{}
 
 	assertnil(t, ls.Append(msg, 0))
@@ -23,7 +23,7 @@ func TestLogAppend(t *testing.T) {
 }
 
 func TestLogGet(t *testing.T) {
-	ls := replication.LogStore[*vsrproto.Message]{}
+	ls := replication.MemoryLog[*vsrproto.Message]{}
 	msg := &vsrproto.Message{}
 
 	assertnil(t, ls.Append(msg, 0))
@@ -41,7 +41,7 @@ func TestLogGet(t *testing.T) {
 }
 
 func TestLogLastIndex(t *testing.T) {
-	ls := replication.LogStore[*vsrproto.Message]{}
+	ls := replication.MemoryLog[*vsrproto.Message]{}
 	msg := &vsrproto.Message{}
 
 	assertnil(t, ls.Append(msg, 0))
@@ -57,7 +57,7 @@ func TestLogLastIndex(t *testing.T) {
 }
 
 func TestLogFirstIndex(t *testing.T) {
-	ls := replication.LogStore[*vsrproto.Message]{}
+	ls := replication.MemoryLog[*vsrproto.Message]{}
 	msg := &vsrproto.Message{}
 
 	assertnil(t, ls.Append(msg, 0))
@@ -77,7 +77,7 @@ func TestLogFirstIndex(t *testing.T) {
 }
 
 func TestLogTruncate(t *testing.T) {
-	ls := replication.LogStore[*vsrproto.Message]{}
+	ls := replication.MemoryLog[*vsrproto.Message]{}
 	msg := &vsrproto.Message{}
 
 	assertnil(t, ls.Append(msg, 0))
