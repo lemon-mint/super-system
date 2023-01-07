@@ -16,7 +16,7 @@ const (
 
 type ClientEntry struct {
 	SequenceNumber uint64
-	Cache          CacheEntry
+	ResponseCache  CacheEntry
 }
 
 type VSRState struct {
