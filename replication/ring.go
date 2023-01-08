@@ -5,8 +5,8 @@ type ring[T any] struct {
 	r, w uint64
 }
 
-func newring[T any](size uint64) *ring[T] {
-	return &ring[T]{data: make([]T, size)}
+func newring[T any](size uint64) ring[T] {
+	return ring[T]{data: make([]T, size)}
 }
 
 func (r *ring[T]) Len() uint64 {
@@ -14,10 +14,10 @@ func (r *ring[T]) Len() uint64 {
 }
 
 func (r *ring[T]) Write(data T) (ok bool) {
-	if r.w-r.r >= uint64(len(r.data)) {
+	if r.w-r.r >= r.Cap() {
 		return false
 	}
-	r.data[r.w%uint64(len(r.data))] = data
+	r.data[r.w%r.Cap()] = data
 	r.w++
 	return true
 }
@@ -26,7 +26,7 @@ func (r *ring[T]) Read() (data T, ok bool) {
 	if r.w == r.r {
 		return
 	}
-	data = r.data[r.r%uint64(len(r.data))]
+	data = r.data[r.r%r.Cap()]
 	r.r++
 	return data, true
 }
@@ -41,4 +41,12 @@ func (r *ring[T]) Cap() uint64 {
 
 func (r *ring[T]) Free() uint64 {
 	return r.Cap() - r.Len()
+}
+
+func (r *ring[T]) At(i uint64) T {
+	return r.data[(r.r+i)%r.Cap()]
+}
+
+func (r *ring[T]) Drop(n uint64) {
+	r.r += n
 }

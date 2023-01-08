@@ -5,72 +5,68 @@ import (
 )
 
 type MemoryLog[T any] struct {
-	logs   []T
+	ring   ring[T]
 	offset uint64
+}
+
+func NewMemoryLog[T any](size uint64) *MemoryLog[T] {
+	return &MemoryLog[T]{ring: newring[T](size)}
 }
 
 var (
 	ErrInvalidIndex = errors.New("LogStore[T]: Invalid index")
+	ErrRingFull     = errors.New("LogStore[T]: Ring is full")
 )
 
-func (ls *MemoryLog[T]) Append(msg T, id uint64) error {
+func (m *MemoryLog[T]) Append(msg T, id uint64) error {
 	// Check if the id is the next one
-	if id != ls.offset+uint64(len(ls.logs)) {
+	if id != m.offset+m.ring.Len() {
 		return ErrInvalidIndex
 	}
-	ls.logs = append(ls.logs, msg)
+	if !m.ring.Write(msg) {
+		return ErrRingFull
+	}
 	return nil
 }
 
-func (ls *MemoryLog[T]) Get(index uint64) (T, error) {
+func (m *MemoryLog[T]) Get(index uint64) (T, error) {
 	var zero T
-	if index < ls.offset {
+	if index < m.offset {
 		return zero, ErrInvalidIndex
 	}
-	if index >= ls.offset+uint64(len(ls.logs)) {
+	if index >= m.offset+m.ring.Len() {
 		return zero, ErrInvalidIndex
 	}
-	return ls.logs[index-ls.offset], nil
+	return m.ring.At(index - m.offset), nil
 }
 
-func (ls *MemoryLog[T]) LastIndex() (uint64, error) {
-	return ls.offset + uint64(len(ls.logs)) - 1, nil
+func (m *MemoryLog[T]) LastIndex() (uint64, error) {
+	return m.offset + m.ring.Len() - 1, nil
 }
 
-func (ls *MemoryLog[T]) FirstIndex() (uint64, error) {
-	return ls.offset, nil
+func (m *MemoryLog[T]) FirstIndex() (uint64, error) {
+	return m.offset, nil
 }
 
-func (ls *MemoryLog[T]) Truncate(index uint64) error {
-	if index < ls.offset {
+func (m *MemoryLog[T]) Truncate(index uint64) error {
+	if index < m.offset {
 		return ErrInvalidIndex
 	}
 
-	if index >= ls.offset+uint64(len(ls.logs)) {
+	if index >= m.offset+m.ring.Len() {
 		return ErrInvalidIndex
 	}
 
-	tt := index - ls.offset
-	newLen := len(ls.logs) - int(tt)
-	copy(ls.logs, ls.logs[tt:])
-	ls.logs = ls.logs[:newLen]
-	ls.offset = index
+	m.ring.Drop(index - m.offset)
+	m.offset = index
 
 	return nil
 }
 
-func (ls *MemoryLog[T]) Len() int {
-	return len(ls.logs)
+func (m *MemoryLog[T]) Len() uint64 {
+	return m.ring.Len()
 }
 
 func (ls *MemoryLog[T]) UnsafeSetOffset(index uint64) {
 	ls.offset = index
-}
-
-func (ls *MemoryLog[T]) UnsafeSetLogs(log []T) {
-	ls.logs = log
-}
-
-func (ls *MemoryLog[T]) UnsafeGetLogs() []T {
-	return ls.logs
 }
