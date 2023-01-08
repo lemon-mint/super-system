@@ -10,7 +10,11 @@ type MemoryLog[T any] struct {
 }
 
 func NewMemoryLog[T any](size uint64) *MemoryLog[T] {
-	return &MemoryLog[T]{ring: newring[T](size)}
+	return &MemoryLog[T]{
+		ring: ring[T]{
+			data: make([]T, size),
+		},
+	}
 }
 
 var (
