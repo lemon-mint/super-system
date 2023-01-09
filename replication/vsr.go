@@ -4,6 +4,7 @@ type Config struct {
 	Peers             []uint64
 	ViewChangeTimeout uint64
 	HeartbeatTimeout  uint64
+	MessageBus        MessageBus
 }
 
 type Status uint16
@@ -27,11 +28,11 @@ type VSRState struct {
 	ViewNumber uint64
 	StableView uint64 // StableView is the highest view number that has been stable
 
-	Status   Status // Normal, ViewChange, Recovering
-	OpNumber uint64
+	Status Status // Normal, ViewChange, Recovering
 
-	// The log of operations
-	OpLog MemoryLog[ClientEntry]
+	OperationNumber uint64
+	CommitNumber    uint64
 
+	OpLog       MemoryLog[ClientEntry] // The log of operations
 	ClientTable map[uint64]ClientEntry
 }
