@@ -35,4 +35,7 @@ type VSRState struct {
 
 	OpLog       MemoryLog[ClientEntry] // The log of operations
 	ClientTable map[uint64]ClientEntry
+
+	HeartbeatTick  uint64
+	ViewChangeTick uint64
 }
