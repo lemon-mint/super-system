@@ -34,6 +34,7 @@ type ClientEntry struct {
 type OperationEntry struct {
 	OperationNumber uint64
 	Operation       []byte
+	ViewNumber      uint64
 }
 
 type VSRState struct {
@@ -102,16 +103,17 @@ func (v *VSRState) OnPropose(ClientID uint64, seq uint64, op []byte) (opn uint64
 	v.OperationNumber++
 	// Assign operation number to operation
 	opn = v.OperationNumber
+	ope := OperationEntry{opn, op, v.ViewNumber}
 
 	// Append operation to log
-	v.OpLog.Append(OperationEntry{opn, op}, opn)
+	v.OpLog.Append(ope, opn)
 
 	// Send operation to all replicas
 	// TODO: send to all replicas
 	return
 }
 
-func (v *VSRState) OnPrepare(src uint64, view uint64, op OperationEntry) (err error) {
+func (v *VSRState) OnPrepare(src uint64, view uint64, ope OperationEntry) (err error) {
 	// Assert: v.Status == Status_Normal
 	if v.Status != Status_Normal {
 		err = ErrStatusNotNormal
@@ -142,7 +144,7 @@ func (v *VSRState) OnPrepare(src uint64, view uint64, op OperationEntry) (err er
 		return
 	}
 
-	if last >= op.OperationNumber {
+	if last >= ope.OperationNumber {
 		// Already have this operation
 		return
 	}
