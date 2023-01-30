@@ -45,6 +45,9 @@ func (m *MemoryLog[T]) Get(index uint64) (T, error) {
 }
 
 func (m *MemoryLog[T]) LastIndex() (uint64, error) {
+	if m.ring.Len() == 0 {
+		return 0, ErrInvalidIndex
+	}
 	return m.offset + m.ring.Len() - 1, nil
 }
 

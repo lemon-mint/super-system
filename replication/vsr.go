@@ -22,6 +22,7 @@ const (
 var (
 	ErrStatusNotNormal = errors.New("Not in normal state")
 	ErrNotALeader      = errors.New("Not a leader")
+	ErrInvalidView     = errors.New("Invalid view")
 	ErrReplay          = errors.New("Replay")
 )
 
@@ -107,5 +108,44 @@ func (v *VSRState) OnPropose(ClientID uint64, seq uint64, op []byte) (opn uint64
 
 	// Send operation to all replicas
 	// TODO: send to all replicas
+	return
+}
+
+func (v *VSRState) OnPrepare(src uint64, view uint64, op OperationEntry) (err error) {
+	// Assert: v.Status == Status_Normal
+	if v.Status != Status_Normal {
+		err = ErrStatusNotNormal
+		return
+	}
+
+	// Assert: v.ViewNumber == v.StableView
+	if v.ViewNumber != v.StableView {
+		err = ErrStatusNotNormal
+		return
+	}
+
+	// Assert: view == v.ViewNumber
+	if view != v.ViewNumber {
+		err = ErrInvalidView
+		return
+	}
+
+	// Assert: src == v.Leader()
+	if src != v.Leader() {
+		err = ErrInvalidView
+		return
+	}
+
+	// Check if all the earlier operations exist in the log
+	last, err := v.OpLog.LastIndex()
+	if err != nil {
+		return
+	}
+
+	if last >= op.OperationNumber {
+		// Already have this operation
+		return
+	}
+
 	return
 }
