@@ -95,18 +95,16 @@ func OpenUWAL(f *os.File) (*UWAL, error) {
 		return nil, err
 	}
 
-	header := uwalproto.UWALHeader{}
-	_, ok := header.UnmarshalGOBE(buffer[:n])
-	if !ok {
-		return nil, ErrInvalidUWALFormat
-	}
-
 	wal := &UWAL{
 		f:      f,
-		header: header,
 		size:   uint64(stat.Size()),
 		mode:   ModeRead,
 		buffer: buffer,
+	}
+
+	_, ok := wal.header.UnmarshalGOBE(buffer[:n])
+	if !ok {
+		return nil, ErrInvalidUWALFormat
 	}
 
 	return wal, nil
