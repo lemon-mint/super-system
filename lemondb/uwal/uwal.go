@@ -1,7 +1,6 @@
 package uwal
 
 import (
-	"bufio"
 	"errors"
 	"os"
 	"time"
@@ -16,14 +15,15 @@ const (
 	ModeWrite
 )
 
+const UWAL_BUFFER_SIZE = 1 << 14
+
 type UWAL struct {
 	f      *os.File
 	header uwalproto.UWALHeader
 	size   uint64
 
-	mode Mode
-	br   *bufio.Reader
-	bw   *bufio.Writer
+	mode   Mode
+	buffer []byte
 }
 
 var (
@@ -89,5 +89,25 @@ func OpenUWAL(f *os.File) (*UWAL, error) {
 		return nil, ErrInvalidUWALFormat
 	}
 
-	return nil, nil
+	buffer := make([]byte, UWAL_BUFFER_SIZE)
+	n, err := f.Read(buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	header := uwalproto.UWALHeader{}
+	_, ok := header.UnmarshalGOBE(buffer[:n])
+	if !ok {
+		return nil, ErrInvalidUWALFormat
+	}
+
+	wal := &UWAL{
+		f:      f,
+		header: header,
+		size:   uint64(stat.Size()),
+		mode:   ModeRead,
+		buffer: buffer,
+	}
+
+	return wal, nil
 }
