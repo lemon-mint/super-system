@@ -15,15 +15,53 @@ const (
 	ModeWrite
 )
 
-const UWAL_BUFFER_SIZE = 1 << 14
+const UWAL_BLOCK_SIZE = 1 << 18
+
+//
+// UWAL File Format
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            UWAL Header                                |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            Block Size Padding                         |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            UWAL Block0    						       |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            ...                                        |
+// +-----------------+-----------------+-----------------+-----------------+
+//
+// UWAL Block Format
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            Entry0                                     |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            ...                                        |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            EntryN                                     |
+// +-----------------+-----------------+-----------------+-----------------+
+// |                            Block Size Padding                         |
+// +-----------------+-----------------+-----------------+-----------------+
+//
+// UWAL Entry Format
+// +-----------------+-----------------+-----------------+-----------------+
+// |  Key Size (4B)                                                        |
+// +-----------------+-----------------+-----------------+-----------------+
+// |  Value Size (4B)                                                      |
+// +-----------------+-----------------+-----------------+-----------------+
+// |  Transaction ID (8B)                                                  |
+// |                                                                       |
+// +-----------------+-----------------+-----------------+-----------------+
+// |  Checksum (8B) = Wyhash64(key)^Wyhash64(value)                        |
+// |                                                                       |
+// +-----------------+-----------------+-----------------+-----------------+
 
 type UWAL struct {
 	f      *os.File
 	header uwalproto.UWALHeader
 	size   uint64
 
-	mode   Mode
+	mode Mode
+
 	buffer []byte
+	offset uint64
 }
 
 var (
@@ -52,7 +90,8 @@ func NewUWAL(f *os.File, id uint64) (*UWAL, error) {
 			FileID:   id,
 			UWALTS:   uint64(time.Now().UnixNano()),
 		},
-		mode: ModeWrite,
+		mode:   ModeWrite,
+		buffer: make([]byte, UWAL_BLOCK_SIZE),
 	}
 
 	offset, err := f.Seek(0, 0)
@@ -64,10 +103,8 @@ func NewUWAL(f *os.File, id uint64) (*UWAL, error) {
 	}
 
 	// Write the header
-	header_size := wal.header.SizeGOBE()
-	header_buf := make([]byte, header_size)
-	wal.header.MarshalGOBE(header_buf)
-	_, err = wal.f.Write(header_buf)
+	wal.offset += wal.header.MarshalGOBE(wal.buffer[wal.offset:])
+	_, err = wal.f.Write(wal.buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +126,7 @@ func OpenUWAL(f *os.File) (*UWAL, error) {
 		return nil, ErrInvalidUWALFormat
 	}
 
-	buffer := make([]byte, UWAL_BUFFER_SIZE)
+	buffer := make([]byte, UWAL_BLOCK_SIZE)
 	n, err := f.Read(buffer)
 	if err != nil {
 		return nil, err
