@@ -166,35 +166,42 @@ func OpenUWAL(f *os.File) (*UWAL, error) {
 	return wal, nil
 }
 
-func (w *UWAL) WriteEntry(key, value []byte, lt LogType, et EntryType) error {
+type Entry struct {
+	Key       []byte
+	Value     []byte
+	LogType   LogType
+	EntryType EntryType
+}
+
+func (w *UWAL) WriteEntry(e *Entry) error {
 	if w.mode != ModeWrite {
 		return ErrReadOnly
 	}
 
-	if len(key) > 0xFFFFFFFF || len(value) > 0xFFFFFFFF ||
-		entryHeaserSize+len(key)+len(value)+terminatorSize > UWAL_BLOCK_SIZE {
+	if len(e.Key) > 0xFFFFFFFF || len(e.Value) > 0xFFFFFFFF ||
+		entryHeaserSize+len(e.Key)+len(e.Value)+terminatorSize > UWAL_BLOCK_SIZE {
 		return ErrTooLargeEntry
 	}
 
 	// Write the entry
-	size := 4 + 4 + 4 + 1 + len(key) + len(value)
-	if w.offset+uint64(size)+terminatorSize > UWAL_BLOCK_SIZE {
+	size := entryHeaserSize + uint64(len(e.Key)) + uint64(len(e.Value))
+	if w.offset+size+terminatorSize > UWAL_BLOCK_SIZE {
 		err := w.FlushBlock()
 		if err != nil {
 			return err
 		}
 	}
 
-	_ = w.buffer[w.offset+entryHeaserSize+uint64(len(key))+uint64(len(value))] // bounds check hint to compiler
-	_ = w.buffer[w.offset+13]                                                  // bounds check hint to compiler
-	binary.LittleEndian.PutUint32(w.buffer[w.offset:], uint32(len(key)))       // key size
-	binary.LittleEndian.PutUint32(w.buffer[w.offset+4:], uint32(len(value)))   // value size
-	binary.LittleEndian.PutUint32(w.buffer[w.offset+8:], w.header.FileID)      // log id
-	w.buffer[w.offset+12] = byte(lt)                                           // log type
-	w.buffer[w.offset+13] = byte(et)                                           // entry type
-	copy(w.buffer[w.offset+entryHeaserSize:], key)                             // key data
-	copy(w.buffer[w.offset+entryHeaserSize+uint64(len(key)):], value)          // value data
-	w.offset += entryHeaserSize + uint64(len(key)) + uint64(len(value))
+	_ = w.buffer[w.offset+entryHeaserSize+uint64(len(e.Key))+uint64(len(e.Value))] // bounds check hint to compiler
+	_ = w.buffer[w.offset+13]                                                      // bounds check hint to compiler
+	binary.LittleEndian.PutUint32(w.buffer[w.offset:], uint32(len(e.Key)))         // key size
+	binary.LittleEndian.PutUint32(w.buffer[w.offset+4:], uint32(len(e.Value)))     // value size
+	binary.LittleEndian.PutUint32(w.buffer[w.offset+8:], w.header.FileID)          // log id
+	w.buffer[w.offset+12] = byte(e.LogType)                                        // log type
+	w.buffer[w.offset+13] = byte(e.EntryType)                                      // entry type
+	copy(w.buffer[w.offset+entryHeaserSize:], e.Key)                               // key data
+	copy(w.buffer[w.offset+entryHeaserSize+uint64(len(e.Key)):], e.Value)          // value data
+	w.offset += size
 
 	return nil
 }
