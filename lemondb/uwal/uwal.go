@@ -1,6 +1,7 @@
 package uwal
 
 import (
+	"encoding/binary"
 	"errors"
 	"os"
 	"time"
@@ -48,10 +49,26 @@ const UWAL_BLOCK_SIZE = 1 << 18
 // +-----------------+-----------------+-----------------+-----------------+
 // |  Log ID (4B)                                                          |
 // +-----------------+-----------------+-----------------+-----------------+
-// |  Type (1B)      |   Key Data                                          |
+// |  Log Type (1B)  | Entry Type (1B) | Key Data                          |
 // +-----------------+-----------------+-----------------+-----------------+
 // |  Value Data                                                           |
 // +-----------------+-----------------+-----------------+-----------------+
+//
+
+const terminatorSize = 4 + 4 + 4 + 1 + 1
+const entryHeaserSize = terminatorSize
+
+type LogType uint8
+
+const (
+	LogStart LogType = iota
+	LogMark
+	LogCommit
+	LogAbort
+	LogTerminate
+)
+
+type EntryType uint8
 
 type UWAL struct {
 	f      *os.File
@@ -67,9 +84,11 @@ type UWAL struct {
 var (
 	ErrInvalidUWALFormat = errors.New("invalid uwal format")
 	ErrInvalidFileOffset = errors.New("invalid file offset")
+	ErrTooLargeEntry     = errors.New("too large entry")
+	ErrReadOnly          = errors.New("read only")
 )
 
-func NewUWAL(f *os.File, id uint64) (*UWAL, error) {
+func NewUWAL(f *os.File, id uint32) (*UWAL, error) {
 	stat, err := f.Stat()
 	if err != nil {
 		return nil, err
@@ -145,4 +164,75 @@ func OpenUWAL(f *os.File) (*UWAL, error) {
 	}
 
 	return wal, nil
+}
+
+func (w *UWAL) WriteEntry(key, value []byte, lt LogType, et EntryType) error {
+	if w.mode != ModeWrite {
+		return ErrReadOnly
+	}
+
+	if len(key) > 0xFFFFFFFF || len(value) > 0xFFFFFFFF ||
+		entryHeaserSize+len(key)+len(value)+terminatorSize > UWAL_BLOCK_SIZE {
+		return ErrTooLargeEntry
+	}
+
+	// Write the entry
+	size := 4 + 4 + 4 + 1 + len(key) + len(value)
+	if w.offset+uint64(size)+terminatorSize > UWAL_BLOCK_SIZE {
+		err := w.FlushBlock()
+		if err != nil {
+			return err
+		}
+	}
+
+	_ = w.buffer[w.offset+entryHeaserSize+uint64(len(key))+uint64(len(value))] // bounds check hint to compiler
+	_ = w.buffer[w.offset+13]                                                  // bounds check hint to compiler
+	binary.LittleEndian.PutUint32(w.buffer[w.offset:], uint32(len(key)))       // key size
+	binary.LittleEndian.PutUint32(w.buffer[w.offset+4:], uint32(len(value)))   // value size
+	binary.LittleEndian.PutUint32(w.buffer[w.offset+8:], w.header.FileID)      // log id
+	w.buffer[w.offset+12] = byte(lt)                                           // log type
+	w.buffer[w.offset+13] = byte(et)                                           // entry type
+	copy(w.buffer[w.offset+entryHeaserSize:], key)                             // key data
+	copy(w.buffer[w.offset+entryHeaserSize+uint64(len(key)):], value)          // value data
+	w.offset += entryHeaserSize + uint64(len(key)) + uint64(len(value))
+
+	return nil
+}
+
+func (w *UWAL) FlushBlock() error {
+	if w.mode != ModeWrite {
+		return ErrReadOnly
+	}
+
+	if w.offset > 0 {
+		if w.offset+terminatorSize > UWAL_BLOCK_SIZE {
+			return ErrTooLargeEntry
+		}
+
+		// Write the terminator
+		binary.LittleEndian.PutUint32(w.buffer[w.offset:], 0)                 // key size
+		binary.LittleEndian.PutUint32(w.buffer[w.offset+4:], 0)               // value size
+		binary.LittleEndian.PutUint32(w.buffer[w.offset+8:], w.header.FileID) // log id
+		w.buffer[w.offset+12] = byte(LogTerminate)                            // log type
+		w.buffer[w.offset+13] = 0                                             // entry type
+		w.offset += terminatorSize
+
+		zero := w.buffer[w.offset:]
+		for i := range zero {
+			zero[i] = 0
+		}
+
+		// Write the block
+		_, err := w.f.Write(w.buffer)
+		if err != nil {
+			return err
+		}
+		w.offset = 0
+	}
+
+	return nil
+}
+
+func (w *UWAL) Sync() error {
+	return w.f.Sync()
 }

@@ -3,7 +3,7 @@ package uwalproto
 func (ns25519 *UWALHeader) SizeGOBE() uint64 {
 	var ns25520 uint64
 
-	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint64; UWALTS uint64})(ns25519)
+	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint32; UWALTS uint64})(ns25519)
 
 	// ZZ: (uint64)(ns25519.WALMagic)
 	ns25520 += 8
@@ -13,8 +13,8 @@ func (ns25519 *UWALHeader) SizeGOBE() uint64 {
 	// ZZ: (uint64)(ns25519.Version)
 	ns25520 += 8
 
-	// ZZ: (uint64)(ns25519.FileID)
-	ns25520 += 8
+	// ZZ: (uint32)(ns25519.FileID)
+	ns25520 += 4
 
 	// ZZ: (uint64)(ns25519.UWALTS)
 	ns25520 += 8
@@ -25,7 +25,7 @@ func (ns25519 *UWALHeader) SizeGOBE() uint64 {
 func (ns25521 *UWALHeader) MarshalGOBE(dst []byte) uint64 {
 	var ns25522 uint64
 
-	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint64; UWALTS uint64})(ns25521)
+	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint32; UWALTS uint64})(ns25521)
 
 	// ZZ: (uint64)(ns25521.WALMagic)
 	_ = dst[ns25522+7]
@@ -53,17 +53,13 @@ func (ns25521 *UWALHeader) MarshalGOBE(dst []byte) uint64 {
 	dst[ns25522+7] = byte(ns25521.Version >> 56)
 	ns25522 += 8
 
-	// ZZ: (uint64)(ns25521.FileID)
-	_ = dst[ns25522+7]
+	// ZZ: (uint32)(ns25521.FileID)
+	_ = dst[ns25522+3]
 	dst[ns25522+0] = byte(ns25521.FileID >> 0)
 	dst[ns25522+1] = byte(ns25521.FileID >> 8)
 	dst[ns25522+2] = byte(ns25521.FileID >> 16)
 	dst[ns25522+3] = byte(ns25521.FileID >> 24)
-	dst[ns25522+4] = byte(ns25521.FileID >> 32)
-	dst[ns25522+5] = byte(ns25521.FileID >> 40)
-	dst[ns25522+6] = byte(ns25521.FileID >> 48)
-	dst[ns25522+7] = byte(ns25521.FileID >> 56)
-	ns25522 += 8
+	ns25522 += 4
 
 	// ZZ: (uint64)(ns25521.UWALTS)
 	_ = dst[ns25522+7]
@@ -82,7 +78,7 @@ func (ns25521 *UWALHeader) MarshalGOBE(dst []byte) uint64 {
 
 func (ns25523 *UWALHeader) UnmarshalGOBE(src []byte) (offset uint64, ok bool) {
 
-	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint64; UWALTS uint64})(ns25523)
+	// ZZ: (struct{WALMagic uint64; Version ./lemondb/uwal/uwalproto.UWALVersion; FileID uint32; UWALTS uint64})(ns25523)
 
 	// ZZ: (uint64)(ns25523.WALMagic)
 	if uint64(len(src)) < offset+8 {
@@ -104,14 +100,14 @@ func (ns25523 *UWALHeader) UnmarshalGOBE(src []byte) (offset uint64, ok bool) {
 		uint64(src[offset+0])<<0 | uint64(src[offset+1])<<8 | uint64(src[offset+2])<<16 | uint64(src[offset+3])<<24 | uint64(src[offset+4])<<32 | uint64(src[offset+5])<<40 | uint64(src[offset+6])<<48 | uint64(src[offset+7])<<56)
 	offset += 8
 
-	// ZZ: (uint64)(ns25523.FileID)
-	if uint64(len(src)) < offset+8 {
+	// ZZ: (uint32)(ns25523.FileID)
+	if uint64(len(src)) < offset+4 {
 		return
 	}
-	_ = src[offset+7]
-	ns25523.FileID = uint64(
-		uint64(src[offset+0])<<0 | uint64(src[offset+1])<<8 | uint64(src[offset+2])<<16 | uint64(src[offset+3])<<24 | uint64(src[offset+4])<<32 | uint64(src[offset+5])<<40 | uint64(src[offset+6])<<48 | uint64(src[offset+7])<<56)
-	offset += 8
+	_ = src[offset+3]
+	ns25523.FileID = uint32(
+		uint32(src[offset+0])<<0 | uint32(src[offset+1])<<8 | uint32(src[offset+2])<<16 | uint32(src[offset+3])<<24)
+	offset += 4
 
 	// ZZ: (uint64)(ns25523.UWALTS)
 	if uint64(len(src)) < offset+8 {
