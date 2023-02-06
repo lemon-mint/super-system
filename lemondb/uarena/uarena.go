@@ -2,24 +2,22 @@ package uarena
 
 type UArena struct {
 	Data   []byte
-	offset uint64
-	ref    uint64
+	offset uint32
 }
 
 func NewUArena(size uint64) *UArena {
 	return &UArena{
 		Data:   make([]byte, size),
 		offset: 0,
-		ref:    0,
 	}
 }
 
 const (
-	InvalidOffset = uint64(1<<64 - 1)
+	InvalidOffset = uint32(1<<32 - 1)
 )
 
-func (ua *UArena) Alloc(size uint64) (offset uint64) {
-	if ua.offset+size > uint64(len(ua.Data)) {
+func (ua *UArena) Alloc(size uint32) (offset uint32) {
+	if ua.offset+size > uint32(len(ua.Data)) {
 		return InvalidOffset
 	}
 	offset = ua.offset
@@ -27,15 +25,6 @@ func (ua *UArena) Alloc(size uint64) (offset uint64) {
 	return
 }
 
-func (ua *UArena) Ref() uint64 {
-	return ua.ref
-}
-
-func (ua *UArena) IncRef() {
-	ua.ref++
-}
-
-func (ua *UArena) DecRef() (free bool) {
-	ua.ref--
-	return ua.ref == 0
+func (ua *UArena) Bytes(offset uint32, size uint32) []byte {
+	return ua.Data[offset : offset+size]
 }
