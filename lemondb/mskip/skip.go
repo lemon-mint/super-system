@@ -2,8 +2,10 @@ package mskip
 
 import (
 	"encoding/binary"
+	"time"
 
 	"v8.run/go/supersystem/lemondb/uarena"
+	"v8.run/go/supersystem/lemondb/wyhash/splitmix64"
 )
 
 const MAX_HEIGHT = 32
@@ -29,16 +31,20 @@ func loadNode(arena *uarena.UArena, addr uint32, node *Node) {
 		uint64(arena.Data[addr+14])<<32 | uint64(arena.Data[addr+15])<<40 |
 		uint64(arena.Data[addr+16])<<48 | uint64(arena.Data[addr+17])<<56
 	for i := uint32(0); i < uint32(node.Height); i++ {
-		_ = arena.Data[addr+19+2*i] // bounds check hint to compiler; see golang.org/issue/14808
-		node.Next[i] = uint32(arena.Data[addr+18+2*i]) | uint32(arena.Data[addr+19+2*i])<<8
+		_ = arena.Data[addr+21+4*i] // bounds check hint to compiler; see golang.org/issue/14808
+		node.Next[i] = uint32(arena.Data[addr+18+4*i]) |
+			uint32(arena.Data[addr+19+4*i])<<8 |
+			uint32(arena.Data[addr+20+4*i])<<16 |
+			uint32(arena.Data[addr+21+4*i])<<24
 	}
 }
 
 func sizeNode(node *Node) uint32 {
-	return 18 + 2*uint32(node.Height)
+	return 18 + 4*uint32(node.Height)
 }
 
 func storeNode(arena *uarena.UArena, addr uint32, node *Node) {
+	_ = arena.Data[addr+17] // bounds check hint to compiler; see golang.org/issue/14808
 	arena.Data[addr] = byte(node.Height)
 	arena.Data[addr+1] = byte(node.Height >> 8)
 	arena.Data[addr+2] = byte(node.Key)
@@ -58,8 +64,11 @@ func storeNode(arena *uarena.UArena, addr uint32, node *Node) {
 	arena.Data[addr+16] = byte(node.Value >> 48)
 	arena.Data[addr+17] = byte(node.Value >> 56)
 	for i := uint32(0); i < uint32(node.Height); i++ {
+		_ = arena.Data[addr+21+2*i] // bounds check hint to compiler; see golang.org/issue/14808
 		arena.Data[addr+18+2*i] = byte(node.Next[i])
 		arena.Data[addr+19+2*i] = byte(node.Next[i] >> 8)
+		arena.Data[addr+20+2*i] = byte(node.Next[i] >> 16)
+		arena.Data[addr+21+2*i] = byte(node.Next[i] >> 24)
 	}
 }
 
@@ -100,6 +109,19 @@ func (addr nodeAddr) Value(arena *uarena.UArena) uint64 {
 		uint64(arena.Data[offset+16])<<48 | uint64(arena.Data[offset+17])<<56
 }
 
+func (addr nodeAddr) SetValue(arena *uarena.UArena, value uint64) {
+	offset := addr.Offset()
+	_ = arena.Data[offset+17]
+	arena.Data[offset+10] = byte(value)
+	arena.Data[offset+11] = byte(value >> 8)
+	arena.Data[offset+12] = byte(value >> 16)
+	arena.Data[offset+13] = byte(value >> 24)
+	arena.Data[offset+14] = byte(value >> 32)
+	arena.Data[offset+15] = byte(value >> 40)
+	arena.Data[offset+16] = byte(value >> 48)
+	arena.Data[offset+17] = byte(value >> 56)
+}
+
 func (addr nodeAddr) ValueBytes(arena *uarena.UArena) []byte {
 	value := addr.Value(arena)
 	offset := uint32(value >> 32)
@@ -107,31 +129,46 @@ func (addr nodeAddr) ValueBytes(arena *uarena.UArena) []byte {
 	return arena.Data[offset : offset+length]
 }
 
-func (addr nodeAddr) Next(arena *uarena.UArena, i uint32) nodeAddr {
+func (addr nodeAddr) Next(arena *uarena.UArena, level uint32) nodeAddr {
 	offset := addr.Offset()
-	_ = arena.Data[offset+19+2*i]
-	return nodeAddr(uint32(arena.Data[offset+18+2*i]) | uint32(arena.Data[offset+19+2*i])<<8)
+	_ = arena.Data[offset+18+2*level]
+	return nodeAddr(uint32(arena.Data[offset+18+2*level]) |
+		uint32(arena.Data[offset+19+2*level])<<8 |
+		uint32(arena.Data[offset+20+2*level])<<16 |
+		uint32(arena.Data[offset+21+2*level])<<24)
 }
 
-func mkkey(arena *uarena.UArena, key []byte, ts uint64) uint32 {
+func (addr nodeAddr) SetNext(arena *uarena.UArena, level uint32, next nodeAddr) {
+	offset := addr.Offset()
+	_ = arena.Data[offset+18+2*level]
+	arena.Data[offset+18+2*level] = byte(next)
+	arena.Data[offset+19+2*level] = byte(next >> 8)
+	arena.Data[offset+20+2*level] = byte(next >> 16)
+	arena.Data[offset+21+2*level] = byte(next >> 24)
+}
+
+const InvalidOffset = uint64(1<<64 - 1)
+
+func mkkey(arena *uarena.UArena, key []byte, ts uint64) uint64 {
 	size := uint32(len(key) + TIMESTAMP_SIZE)
 	addr := arena.Alloc(size)
 	if addr == uarena.InvalidOffset {
-		return uarena.InvalidOffset
+		return InvalidOffset
 	}
 	copy(arena.Data[addr:addr+size], key)
 	binary.LittleEndian.PutUint64(arena.Data[addr+size-TIMESTAMP_SIZE:], ts)
-	return addr
+	return uint64(addr)<<32 | uint64(size)
 }
 
 type SkipList struct {
-	Arena *uarena.UArena
-	Head  nodeAddr
+	Arena    *uarena.UArena
+	Head     nodeAddr
+	RandSeed uint64
 }
 
 func NewSkipList(arena *uarena.UArena) *SkipList {
-	sk := &SkipList{Arena: arena, Head: 0}
-
+	sk := &SkipList{Arena: arena, Head: 0, RandSeed: uint64(time.Now().UnixNano()) | splitmix64.Next()}
+	splitmix64.Splitmix64(&sk.RandSeed)
 	head := Node{Height: MAX_HEIGHT}
 	size := sizeNode(&head)
 	addr := arena.Alloc(size)
@@ -178,7 +215,7 @@ func (sk *SkipList) seek(key []byte, ts uint64) (nodeAddr, bool) {
 
 type ctx [MAX_HEIGHT]nodeAddr
 
-func (sk *SkipList) seekContext(c *ctx, key []byte, ts uint64) bool {
+func (sk *SkipList) seekContext(c *ctx, key []byte, ts uint64) (nodeAddr, bool) {
 	x := sk.Head
 	for i := uint32(MAX_HEIGHT - 1); i >= 0; i-- {
 		for {
@@ -205,8 +242,70 @@ func (sk *SkipList) seekContext(c *ctx, key []byte, ts uint64) bool {
 	}
 	x = x.Next(sk.Arena, 0)
 	if x == 0 {
+		return 0, false
+	}
+
+	return x, true
+}
+
+func (sk *SkipList) Get(key []byte, ts uint64) []byte {
+	x, ok := sk.seek(key, ts)
+	if !ok {
+		return nil
+	}
+
+	keyB := x.KeyBytes(sk.Arena)
+	keyData := keyB[:len(keyB)-TIMESTAMP_SIZE]
+	tsData := binary.LittleEndian.Uint64(keyB[len(keyB)-TIMESTAMP_SIZE:])
+	if string(keyData) == string(key) && tsData <= ts {
+		return x.ValueBytes(sk.Arena)
+	}
+
+	return nil
+}
+
+func randHeight(seed *uint64) uint16 {
+	height := uint16(1)
+	for height < MAX_HEIGHT && splitmix64.Splitmix64(seed)&1 == 0 {
+		height++
+	}
+	return height
+}
+
+func (sk *SkipList) Set(key []byte, ts uint64, value []byte) bool {
+	VKey := mkkey(sk.Arena, key, ts)
+	if VKey == InvalidOffset {
 		return false
 	}
 
+	valueAddr := sk.Arena.Alloc(uint32(len(value)))
+	if valueAddr == uarena.InvalidOffset {
+		return false
+	}
+	copy(sk.Arena.Data[valueAddr:valueAddr+uint32(len(value))], value)
+	VValue := uint64(valueAddr)<<32 | uint64(len(value))
+
+	var c ctx
+	addr, ok := sk.seekContext(&c, key, ts)
+	if ok {
+		addr.SetValue(sk.Arena, VValue)
+		return true
+	}
+
+	height := randHeight(&sk.RandSeed)
+	node := Node{Height: height, Key: VKey, Value: VValue}
+	size := sizeNode(&node)
+	NAddr := sk.Arena.Alloc(size)
+	if NAddr == uarena.InvalidOffset {
+		return false
+	}
+
+	// link to next node
+	for i := uint32(0); i < uint32(height); i++ {
+		node.Next[i] = uint32(c[i].Next(sk.Arena, i))
+		c[i].SetNext(sk.Arena, i, nodeAddr(NAddr))
+	}
+
+	storeNode(sk.Arena, NAddr, &node)
 	return true
 }
