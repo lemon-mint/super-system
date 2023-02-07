@@ -188,6 +188,7 @@ func (sk *SkipList) Insert(newNode NodeRef) {
 
 	x := sk.head
 	for i := uint32(MAX_HEIGHT - 1); i >= 0; i-- {
+	L:
 		for {
 			next := x.Next(sk.arena, i)
 			if next == 0 { // Reached tail
@@ -196,12 +197,12 @@ func (sk *SkipList) Insert(newNode NodeRef) {
 			nextKey := next.Key(sk.arena)
 			nextData := dataKey(nextKey)
 			switch bytes.Compare(keyData, nextData) {
-			case +1: // (key > nextKey)
-				break
+			case -1: // (key < nextKey)
+				break L
 			case 0: // (key == nextKey)
 				nextTS := timestamp(nextKey)
 				if KeyTS > nextTS {
-					break
+					break L
 				}
 
 				if KeyTS == nextTS {
@@ -265,6 +266,7 @@ func (sk *SkipList) Delete(key []byte, ts uint64) bool {
 func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
 	x := sk.head
 	for i := uint32(MAX_HEIGHT - 1); i >= 0; i-- {
+	L:
 		for {
 			next := x.Next(sk.arena, i)
 			if next == 0 { // Reached tail
@@ -274,11 +276,11 @@ func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
 			nextData := dataKey(nextKey)
 			nextTS := timestamp(nextKey)
 			switch bytes.Compare(key, nextData) {
-			case +1: // (key > nextKey)
-				break
+			case -1: // (key < nextKey)
+				break L
 			case 0: // (key == nextKey)
 				if ts > nextTS {
-					break
+					break L
 				}
 			}
 			x = next
