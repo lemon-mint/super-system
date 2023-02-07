@@ -151,7 +151,7 @@ func (sk *SkipList) PrepareInsert(key, value []byte, ts uint64) NodeRef {
 	newNode.SetHeight(sk.arena, uint32(height))
 	buffer += 8 + 8 + 4 + 4*uint32(height)
 
-	KeyV64 := uint64(buffer)<<32 | uint64(len(key))
+	KeyV64 := uint64(buffer)<<32 | uint64(len(key)+TIMESTAMP_SIZE)
 	newNode.SetKeyUint64(sk.arena, KeyV64)
 
 	copy(sk.arena.Data[buffer:], key)
@@ -187,7 +187,7 @@ func (sk *SkipList) Insert(newNode NodeRef) {
 	}
 
 	x := sk.head
-	for i := uint32(MAX_HEIGHT - 1); i >= 0; i-- {
+	for i := uint32(MAX_HEIGHT - 1); i < MAX_HEIGHT; i-- {
 	L:
 		for {
 			next := x.Next(sk.arena, i)
@@ -239,7 +239,7 @@ func (sk *SkipList) Delete(key []byte, ts uint64) bool {
 	newNode.SetHeight(sk.arena, uint32(height))
 	buffer += 8 + 8 + 4 + 4*uint32(height)
 
-	KeyV64 := uint64(buffer)<<32 | uint64(len(key))
+	KeyV64 := uint64(buffer)<<32 | uint64(len(key)+TIMESTAMP_SIZE)
 	newNode.SetKeyUint64(sk.arena, KeyV64)
 
 	copy(sk.arena.Data[buffer:], key)
@@ -265,7 +265,7 @@ func (sk *SkipList) Delete(key []byte, ts uint64) bool {
 // Get returns the value for the given key.
 func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
 	x := sk.head
-	for i := uint32(MAX_HEIGHT - 1); i >= 0; i-- {
+	for i := uint32(MAX_HEIGHT - 1); i < MAX_HEIGHT; i-- {
 	L:
 		for {
 			next := x.Next(sk.arena, i)
