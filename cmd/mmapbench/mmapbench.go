@@ -75,27 +75,67 @@ func main() {
 		}
 		fmt.Println("Random Read Heap:", time.Since(t), "n=", n)
 	}
+
+	// Random Read Benchmark
+	for n := 0; n < 10; n++ {
+		t := time.Now()
+		for i := 0; i < 1<<10; i++ {
+			// Copy 1KB of data from the file into the buffer
+			copy(buffer, mem[i<<20:(i<<20)+1<<10])
+		}
+		fmt.Println("Random Read MMap:", time.Since(t), "n=", n)
+	}
+
+	// Random Read Benchmark
+	for n := 0; n < 10; n++ {
+		t := time.Now()
+		for i := 0; i < 1<<10; i++ {
+			// Copy 1KB of data from the file into the buffer
+			copy(buffer, newmem[i<<20:(i<<20)+1<<10])
+		}
+		fmt.Println("Random Read Heap:", time.Since(t), "n=", n)
+	}
 }
 
 // Results on Apple Silicon M1
 //
-// Random Read MMap: 84.789291ms n= 0
-// Random Read MMap: 234.667µs n= 1
-// Random Read MMap: 182.042µs n= 2
-// Random Read MMap: 156.791µs n= 3
-// Random Read MMap: 173.167µs n= 4
-// Random Read MMap: 174.333µs n= 5
-// Random Read MMap: 164.5µs n= 6
-// Random Read MMap: 162.292µs n= 7
-// Random Read MMap: 157µs n= 8
-// Random Read MMap: 154.292µs n= 9
-// Random Read Heap: 648.459µs n= 0
-// Random Read Heap: 117.458µs n= 1
-// Random Read Heap: 127.333µs n= 2
-// Random Read Heap: 115µs n= 3
-// Random Read Heap: 143.125µs n= 4
-// Random Read Heap: 121.625µs n= 5
-// Random Read Heap: 119.875µs n= 6
-// Random Read Heap: 119.417µs n= 7
-// Random Read Heap: 158.291µs n= 8
-// Random Read Heap: 114.209µs n= 9
+// Random Read MMap: 76.726667ms n= 0
+// Random Read MMap: 303.5µs n= 1
+// Random Read MMap: 158.417µs n= 2
+// Random Read MMap: 143.667µs n= 3
+// Random Read MMap: 142µs n= 4
+// Random Read MMap: 140.375µs n= 5
+// Random Read MMap: 141.667µs n= 6
+// Random Read MMap: 152.584µs n= 7
+// Random Read MMap: 146.958µs n= 8
+// Random Read MMap: 137.417µs n= 9
+// Random Read Heap: 522.25µs n= 0
+// Random Read Heap: 108.541µs n= 1
+// Random Read Heap: 110.042µs n= 2
+// Random Read Heap: 108.042µs n= 3
+// Random Read Heap: 108.166µs n= 4
+// Random Read Heap: 114.208µs n= 5
+// Random Read Heap: 112.875µs n= 6
+// Random Read Heap: 110.458µs n= 7
+// Random Read Heap: 107.708µs n= 8
+// Random Read Heap: 135.458µs n= 9
+// Random Read MMap: 302.125µs n= 0
+// Random Read MMap: 106.833µs n= 1
+// Random Read MMap: 108.959µs n= 2
+// Random Read MMap: 110.791µs n= 3
+// Random Read MMap: 110.125µs n= 4
+// Random Read MMap: 107.625µs n= 5
+// Random Read MMap: 107.625µs n= 6
+// Random Read MMap: 107.125µs n= 7
+// Random Read MMap: 107.042µs n= 8
+// Random Read MMap: 105.5µs n= 9
+// Random Read Heap: 153.75µs n= 0
+// Random Read Heap: 104.917µs n= 1
+// Random Read Heap: 106.709µs n= 2
+// Random Read Heap: 106.416µs n= 3
+// Random Read Heap: 106.166µs n= 4
+// Random Read Heap: 106.083µs n= 5
+// Random Read Heap: 106.666µs n= 6
+// Random Read Heap: 106.75µs n= 7
+// Random Read Heap: 106.375µs n= 8
+// Random Read Heap: 113.833µs n= 9
