@@ -1,5 +1,8 @@
 package protocol
 
+//go:generate stringer -type=MessageType
+//go:generate gobe .
+
 type MessageType uint8
 
 const (
