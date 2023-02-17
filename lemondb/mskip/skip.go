@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"v8.run/go/supersystem/lemondb/uarena"
-	"v8.run/go/supersystem/lemondb/wyhash/splitmix64"
+	"github.com/lemon-mint/super-system/lemondb/uarena"
+	"github.com/lemon-mint/super-system/lemondb/wyhash/splitmix64"
 )
 
 const MAX_HEIGHT = 20

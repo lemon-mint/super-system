@@ -3,8 +3,7 @@ package replication_test
 import (
 	"testing"
 
-	"v8.run/go/supersystem/replication"
-	"v8.run/go/supersystem/replication/vsrproto"
+	"github.com/lemon-mint/super-system/replication"
 )
 
 func assertnil(t *testing.T, err error) {
@@ -13,9 +12,12 @@ func assertnil(t *testing.T, err error) {
 	}
 }
 
+type Message struct {
+}
+
 func TestLogAppend(t *testing.T) {
-	ls := replication.NewMemoryLog[*vsrproto.Message](4096)
-	msg := &vsrproto.Message{}
+	ls := replication.NewMemoryLog[*Message](4096)
+	msg := &Message{}
 
 	assertnil(t, ls.Append(msg, 0))
 	assertnil(t, ls.Append(msg, 1))
@@ -23,8 +25,8 @@ func TestLogAppend(t *testing.T) {
 }
 
 func TestLogGet(t *testing.T) {
-	ls := replication.NewMemoryLog[*vsrproto.Message](4096)
-	msg := &vsrproto.Message{}
+	ls := replication.NewMemoryLog[*Message](4096)
+	msg := &Message{}
 
 	assertnil(t, ls.Append(msg, 0))
 	assertnil(t, ls.Append(msg, 1))
@@ -41,8 +43,8 @@ func TestLogGet(t *testing.T) {
 }
 
 func TestLogLastIndex(t *testing.T) {
-	ls := replication.NewMemoryLog[*vsrproto.Message](4096)
-	msg := &vsrproto.Message{}
+	ls := replication.NewMemoryLog[*Message](4096)
+	msg := &Message{}
 
 	assertnil(t, ls.Append(msg, 0))
 	assertnil(t, ls.Append(msg, 1))
@@ -57,8 +59,8 @@ func TestLogLastIndex(t *testing.T) {
 }
 
 func TestLogFirstIndex(t *testing.T) {
-	ls := replication.NewMemoryLog[*vsrproto.Message](4096)
-	msg := &vsrproto.Message{}
+	ls := replication.NewMemoryLog[*Message](4096)
+	msg := &Message{}
 
 	assertnil(t, ls.Append(msg, 0))
 	assertnil(t, ls.Append(msg, 1))
@@ -77,8 +79,8 @@ func TestLogFirstIndex(t *testing.T) {
 }
 
 func TestLogTruncate(t *testing.T) {
-	ls := replication.NewMemoryLog[*vsrproto.Message](4096)
-	msg := &vsrproto.Message{}
+	ls := replication.NewMemoryLog[*Message](4096)
+	msg := &Message{}
 
 	assertnil(t, ls.Append(msg, 0))
 	assertnil(t, ls.Append(msg, 1))

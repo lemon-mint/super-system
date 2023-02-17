@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"v8.run/go/supersystem/lemondb/mskip"
-	"v8.run/go/supersystem/lemondb/uarena"
+	"github.com/lemon-mint/super-system/lemondb/mskip"
+	"github.com/lemon-mint/super-system/lemondb/uarena"
 )
 
 const seed = 0x53514C6974652066

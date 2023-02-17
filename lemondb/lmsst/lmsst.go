@@ -2,6 +2,9 @@ package lmsst
 
 const LMSSTv1_MAGIC = 0x9579aea3c5752d15
 
+// Note: LMSSTv1 does not support the following features:
+// - in place updates
+
 // LMSSTv1 File Format
 
 // LMSSTv1 File Header
@@ -13,6 +16,22 @@ const LMSSTv1_MAGIC = 0x9579aea3c5752d15
 
 // Entry is a single key-value pair in the LMSST file.
 //
-// *--------------------*
-// |
+// *---------------*-----------------*-------------------*---------*-----------*
+// | Metadata (1B) | Key Length (2B) | Value Length (4B) | Key (N) | Value (M) |
+// *---------------*-----------------*-------------------*---------*-----------*
 //
+// Metadata:
+// - 0x00: Reserved
+// - 0x01: Normal entry
+// - 0x02: Deleted entry
+
+// LMSSTv1 File Footer
+// *---------------------------------*---------------------------------*
+// |          File ID (8B)           |          Entry Count (8B)       |
+// *---------------------------------*---------------------------------*
+// |          Key Size (8B)          |          Value Size (8B)        |
+// *---------------------------------*---------------------------------*
+// |          Index Offset (8B)      |          Timestamp (8B)         |
+// *---------------------------------*---------------------------------*
+// | 0x9579aea3c5752d15 (8B) - Magic |          Reserved (8B)          |
+// *---------------------------------*---------------------------------*

@@ -1,9 +1,9 @@
 package replication
 
-import "v8.run/go/supersystem/replication/vsrproto"
+import "github.com/lemon-mint/super-system/replication/protocol"
 
 type MessageBus interface {
-	SendMessageToClient(clientID uint64, message *vsrproto.Message)
-	SendMessageToReplica(replicaID uint64, message *vsrproto.Message)
-	BroadcastMessageToReplicas(message *vsrproto.Message)
+	SendMessageToClient(clientID uint64, message *protocol.Message)
+	SendMessageToReplica(replicaID uint64, message *protocol.Message)
+	BroadcastMessageToReplicas(message *protocol.Message)
 }

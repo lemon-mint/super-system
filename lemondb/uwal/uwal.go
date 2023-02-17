@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"v8.run/go/supersystem/lemondb/uwal/uwalproto"
+	"github.com/lemon-mint/super-system/lemondb/uwal/uwalproto"
 )
 
 type Mode uint8
