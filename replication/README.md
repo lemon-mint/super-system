@@ -1,6 +1,12 @@
+---
+title: "SuperSystem"
+---
+
+## Introduction
+
 SuperSystem Uses Viewstamped Replication based protocol to replicate data across multiple nodes
 
-# Terminology
+## Terminology
 
 - View Number: A monotonically increasing number that is incremented every time a new view is installed
 - Commit Number: A monotonically increasing number that is incremented every time a new commit is made
@@ -10,15 +16,15 @@ SuperSystem Uses Viewstamped Replication based protocol to replicate data across
 - View Change: A process of changing the current view to a new view
 - Reconfiguration: A process of changing cluster membership
 
-# Implementation Detail
+## Implementation Detail
 
-## Consistency Models
+### Consistency Models
 
 SuperSystem can operate with precise clocks (like Atomic Clocks) or without them.
 
 without precise clocks, the Consistency level is limited.
 
-### Linearizable Mode
+#### Linearizable Mode
 
 When Precise Clocks are available (like Atomic Clocks), Linearizable Consistency is available.
 
@@ -26,56 +32,61 @@ When Replication Group Sharding is disabled, SuperSystem uses a single replicati
 
 When Linearizable Mode is enabled, SuperSystem waits for clock boundaries to ensure that all operations are ordered correctly.
 
-## High Throughput Mode
+#### High Throughput Mode
 
 - Leader Batch Processes Requests received in 50ms.
 
-## Low Latency Mode
+#### Low Latency Mode
 
 - Leader Processes Requests in Realtime.
 
-## Replication Group Sharding
+### Replication Group Sharding
 
 SuperSystem Use Replication Group Sharding to Provide Scalability
+
 - Every Replication Group has a unique ID (Replication Group ID)
 - All Packets sent to a Replication Group are tagged with the Replication Group ID
 
-# Normal Operation
+## Normal Operation
 
 ## On Propose
 
-1. A client sends a Propose to the primary
-```
+A client sends a Propose to the primary
+
+```plaintext
 Propose [
-	ClientID: The ID of the client.
+    ClientID: The ID of the client.
     SequenceNumber: The client's sequence number.
     Operation: The operation to be performed.
 ]
 ```
 
-2. When the primary node receives a Propose,
+When the primary node receives a Propose,
+
 IF SequenceNumber is not greater than the primary's sequence number
 THEN the primary node sends a Reject to the client
-```
+
+```plaintext
 Reject [
     ClientID: The ID of the client.
     SequenceNumber: The client's sequence number.
     Reason: The reason for the rejection.
 ]
 ```
+
 ELSE
 
-3. The primary node sets the primary sequence number to SequenceNumber.
+The primary node sets the primary sequence number to SequenceNumber.
 
-4. OperationNumber++
+OperationNumber++
 
-5. n = OperationNumber
+n = OperationNumber
 
-6. The primary node adds the Propose to the primary's log.
+The primary node adds the Propose to the primary's log.
 
-7. The primary node sends a Prepare to all the other nodes in the cluster.
+The primary node sends a Prepare to all the other nodes in the cluster.
 
-```
+```plaintext
 Prepare [
     ViewNumber: The view number.
     OperationNumber: The operation number.
@@ -84,17 +95,16 @@ Prepare [
 ]
 ```
 
-8. When the primary node receives a PrepareOK from a quorum of nodes, it commits the operation.
+When the primary node receives a PrepareOK from a quorum of nodes, it commits the operation.
 
-9. CommitNumber = n
+CommitNumber = n
 
 ## On Prepare
 
 Status: Normal
 
-1. When a node receives a Prepare, it checks if all the earlier operations exist in the log.
+When a node receives a Prepare, it checks if all the earlier operations exist in the log.
 
-2. If Prepare.ViewNumber != ViewNumber, the node ignores the Prepare.
+If Prepare.ViewNumber != ViewNumber, the node ignores the Prepare.
 
-3. If Prepare.OperationNumber <= CommitNumber, the node ignores the Prepare.
-
+If Prepare.OperationNumber <= CommitNumber, the node ignores the Prepare.

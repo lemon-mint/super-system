@@ -9,11 +9,16 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[MT_Unknown-0]
+	_ = x[MT_Propose-1]
+	_ = x[MT_Prepare-2]
+	_ = x[MT_ProposeRejection-3]
+	_ = x[MT_PrepareRejection-4]
+	_ = x[MT_PrepareAcceptance-5]
 }
 
-const _MessageType_name = "MT_Unknown"
+const _MessageType_name = "MT_UnknownMT_ProposeMT_PrepareMT_ProposeRejectionMT_PrepareRejectionMT_PrepareAcceptance"
 
-var _MessageType_index = [...]uint8{0, 10}
+var _MessageType_index = [...]uint8{0, 10, 20, 30, 49, 68, 88}
 
 func (i MessageType) String() string {
 	if i >= MessageType(len(_MessageType_index)-1) {
