@@ -109,10 +109,10 @@ func (v *VSRState) OnPropose(m *protocol.Message) (opn uint64, e errno.Errno) {
 	msg := protocol.AcquireMessage()
 	msg.GroupID = v.Configuration.GroupID
 	msg.Type = protocol.MT_Prepare
-	msg.Prepare.ViewNumber = v.ViewNumber
-	msg.Prepare.OperationNumber = opn
 	msg.Prepare.CommitNumber = v.CommitNumberMAX
-	msg.Prepare.Operation = m.Propose.Operation
+	msg.Prepare.OperationEntry.OperationNumber = opn
+	msg.Prepare.OperationEntry.Operation = m.Propose.Operation
+	msg.Prepare.OperationEntry.ViewNumber = v.ViewNumber
 
 	// Append operation to log
 	err := v.OpLog.Append(msg.Prepare.OperationEntry, opn)
