@@ -15,4 +15,10 @@ const (
 	ERRNO_DUPLICATE
 	ERRNO_NOTLEADER
 	ERRNO_REPLAY
+	ERRNO_LATECOMMIT
+	ERRNO_EARLYCOMMIT
 )
+
+func (e Errno) Error() string {
+	return e.String()
+}

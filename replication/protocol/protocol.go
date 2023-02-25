@@ -57,6 +57,7 @@ type PrepareAcceptance struct {
 }
 
 type Message struct {
+	Source            uint64
 	GroupID           uint64
 	Type              MessageType
 	Propose           `gobe_enum:"Type=MT_Propose"`

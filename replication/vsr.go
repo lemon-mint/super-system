@@ -57,7 +57,7 @@ type VSRState struct {
 }
 
 func (v *VSRState) Leader() uint64 {
-	return v.Configuration.Peers[0]
+	return v.Configuration.Peers[v.ViewNumber%uint64(len(v.Configuration.Peers))]
 }
 
 func (v *VSRState) OnPropose(m *protocol.Message) (opn uint64, e errno.Errno) {
@@ -127,7 +127,11 @@ func (v *VSRState) OnPropose(m *protocol.Message) (opn uint64, e errno.Errno) {
 	return
 }
 
-func (v *VSRState) OnPrepare(src uint64, view uint64, ope protocol.OperationEntry) (e errno.Errno) {
+func (v *VSRState) OnPrepare(m *protocol.Message) (e errno.Errno) {
+	if m.Type != protocol.MT_Prepare {
+		panic("Invalid message type, (unreachable)")
+	}
+
 	// Assert: v.Status == Status_Normal
 	if v.Status != Status_Normal {
 		e = errno.ERRNO_STATUSNOTNORMAL
@@ -141,14 +145,26 @@ func (v *VSRState) OnPrepare(src uint64, view uint64, ope protocol.OperationEntr
 	}
 
 	// Assert: view == v.ViewNumber
-	if view != v.ViewNumber {
+	if m.Prepare.ViewNumber != v.ViewNumber {
 		e = errno.ERRNO_VIEWMISMATCH
 		return
 	}
 
 	// Assert: src == v.Leader()
-	if src != v.Leader() {
+	if m.Source != v.Leader() {
 		e = errno.ERRNO_NOTLEADER
+		return
+	}
+
+	// Assert: v.CommitNumberMAX <= m.Prepare.CommitNumber
+	if v.CommitNumberMAX > m.Prepare.CommitNumber {
+		e = errno.ERRNO_LATECOMMIT
+		return
+	}
+
+	// Assert: m.Prepare.CommitNumber <= v.OperationNumber
+	if m.Prepare.CommitNumber > v.OperationNumber {
+		e = errno.ERRNO_EARLYCOMMIT
 		return
 	}
 
@@ -159,20 +175,56 @@ func (v *VSRState) OnPrepare(src uint64, view uint64, ope protocol.OperationEntr
 		return
 	}
 
-	if last >= ope.OperationNumber {
+	if last >= m.Prepare.OperationNumber {
 		// Already have this operation
 		return
 	}
 
 	// Append operation to log
-	v.OpLog.Append(ope, ope.OperationNumber)
+	v.OpLog.Append(m.Prepare.OperationEntry, m.Prepare.OperationEntry.OperationNumber)
+
+	// Commit all operations up to commit number
+	v.CommitNumberMAX = m.Prepare.CommitNumber
+	v.CommitNumberMIN = m.Prepare.CommitNumber
 
 	msg := protocol.AcquireMessage()
 	msg.GroupID = v.Configuration.GroupID
 	msg.Type = protocol.MT_PrepareAcceptance
 	msg.PrepareAcceptance.ViewNumber = v.ViewNumber
-	msg.PrepareAcceptance.OperationNumber = ope.OperationNumber
-	v.Configuration.MessageBus.SendMessageToReplica(src, msg)
+	msg.PrepareAcceptance.OperationNumber = m.Prepare.OperationEntry.OperationNumber
+	v.Configuration.MessageBus.SendMessageToReplica(m.Source, msg)
+
+	return
+}
+
+func (v *VSRState) OnPrepareAcceptance(m *protocol.Message) (e errno.Errno) {
+	if m.Type != protocol.MT_PrepareAcceptance {
+		panic("Invalid message type, (unreachable)")
+	}
+
+	// Assert: v.Status == Status_Normal
+	if v.Status != Status_Normal {
+		e = errno.ERRNO_STATUSNOTNORMAL
+		return
+	}
+
+	// Assert: v.ViewNumber == v.StableView
+	if v.ViewNumber != v.StableView {
+		e = errno.ERRNO_NOTINSTABLEVIEW
+		return
+	}
+
+	// Assert: view == v.ViewNumber
+	if m.PrepareAcceptance.ViewNumber != v.ViewNumber {
+		e = errno.ERRNO_VIEWMISMATCH
+		return
+	}
+
+	// Assert: v.NodeID == v.Leader()
+	if v.NodeID != v.Leader() {
+		e = errno.ERRNO_NOTLEADER
+		return
+	}
 
 	return
 }
