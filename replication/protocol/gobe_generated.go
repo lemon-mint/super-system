@@ -234,7 +234,10 @@ func (ns25538 *MessageType) UnmarshalGOBE(src []byte) (offset uint64, ok bool) {
 func (ns25539 *OperationEntry) SizeGOBE() uint64 {
 	var ns25540 uint64
 
-	// ZZ: (struct{OperationNumber uint64; Operation []byte; ViewNumber uint64})(ns25539)
+	// ZZ: (struct{ViewNumber uint64; OperationNumber uint64; Operation []byte})(ns25539)
+
+	// ZZ: (uint64)(ns25539.ViewNumber)
+	ns25540 += 8
 
 	// ZZ: (uint64)(ns25539.OperationNumber)
 	ns25540 += 8
@@ -242,16 +245,25 @@ func (ns25539 *OperationEntry) SizeGOBE() uint64 {
 	// ZZ: ([]byte)(ns25539.Operation)
 	ns25540 += 8 + uint64(len(ns25539.Operation))
 
-	// ZZ: (uint64)(ns25539.ViewNumber)
-	ns25540 += 8
-
 	return ns25540
 }
 
 func (ns25541 *OperationEntry) MarshalGOBE(dst []byte) uint64 {
 	var ns25542 uint64
 
-	// ZZ: (struct{OperationNumber uint64; Operation []byte; ViewNumber uint64})(ns25541)
+	// ZZ: (struct{ViewNumber uint64; OperationNumber uint64; Operation []byte})(ns25541)
+
+	// ZZ: (uint64)(ns25541.ViewNumber)
+	_ = dst[ns25542+7]
+	dst[ns25542+0] = byte(ns25541.ViewNumber >> 0)
+	dst[ns25542+1] = byte(ns25541.ViewNumber >> 8)
+	dst[ns25542+2] = byte(ns25541.ViewNumber >> 16)
+	dst[ns25542+3] = byte(ns25541.ViewNumber >> 24)
+	dst[ns25542+4] = byte(ns25541.ViewNumber >> 32)
+	dst[ns25542+5] = byte(ns25541.ViewNumber >> 40)
+	dst[ns25542+6] = byte(ns25541.ViewNumber >> 48)
+	dst[ns25542+7] = byte(ns25541.ViewNumber >> 56)
+	ns25542 += 8
 
 	// ZZ: (uint64)(ns25541.OperationNumber)
 	_ = dst[ns25542+7]
@@ -279,24 +291,21 @@ func (ns25541 *OperationEntry) MarshalGOBE(dst []byte) uint64 {
 	copy(dst[ns25542+8:], ns25541.Operation)
 	ns25542 += 8 + ns25543
 
-	// ZZ: (uint64)(ns25541.ViewNumber)
-	_ = dst[ns25542+7]
-	dst[ns25542+0] = byte(ns25541.ViewNumber >> 0)
-	dst[ns25542+1] = byte(ns25541.ViewNumber >> 8)
-	dst[ns25542+2] = byte(ns25541.ViewNumber >> 16)
-	dst[ns25542+3] = byte(ns25541.ViewNumber >> 24)
-	dst[ns25542+4] = byte(ns25541.ViewNumber >> 32)
-	dst[ns25542+5] = byte(ns25541.ViewNumber >> 40)
-	dst[ns25542+6] = byte(ns25541.ViewNumber >> 48)
-	dst[ns25542+7] = byte(ns25541.ViewNumber >> 56)
-	ns25542 += 8
-
 	return ns25542
 }
 
 func (ns25544 *OperationEntry) UnmarshalGOBE(src []byte) (offset uint64, ok bool) {
 
-	// ZZ: (struct{OperationNumber uint64; Operation []byte; ViewNumber uint64})(ns25544)
+	// ZZ: (struct{ViewNumber uint64; OperationNumber uint64; Operation []byte})(ns25544)
+
+	// ZZ: (uint64)(ns25544.ViewNumber)
+	if uint64(len(src)) < offset+8 {
+		return
+	}
+	_ = src[offset+7]
+	ns25544.ViewNumber = uint64(
+		uint64(src[offset+0])<<0 | uint64(src[offset+1])<<8 | uint64(src[offset+2])<<16 | uint64(src[offset+3])<<24 | uint64(src[offset+4])<<32 | uint64(src[offset+5])<<40 | uint64(src[offset+6])<<48 | uint64(src[offset+7])<<56)
+	offset += 8
 
 	// ZZ: (uint64)(ns25544.OperationNumber)
 	if uint64(len(src)) < offset+8 {
@@ -319,15 +328,6 @@ func (ns25544 *OperationEntry) UnmarshalGOBE(src []byte) (offset uint64, ok bool
 	}
 	ns25544.Operation = src[offset : offset+ns25545]
 	offset += ns25545
-
-	// ZZ: (uint64)(ns25544.ViewNumber)
-	if uint64(len(src)) < offset+8 {
-		return
-	}
-	_ = src[offset+7]
-	ns25544.ViewNumber = uint64(
-		uint64(src[offset+0])<<0 | uint64(src[offset+1])<<8 | uint64(src[offset+2])<<16 | uint64(src[offset+3])<<24 | uint64(src[offset+4])<<32 | uint64(src[offset+5])<<40 | uint64(src[offset+6])<<48 | uint64(src[offset+7])<<56)
-	offset += 8
 
 	ok = true
 	return

@@ -2,10 +2,14 @@ package replication
 
 import (
 	"errors"
+	"math"
 
 	"github.com/lemon-mint/super-system/replication/errno"
 	"github.com/lemon-mint/super-system/replication/protocol"
 )
+
+const MAX_MEMORY_LOG_SIZE = 1 << 12
+const MAX_MEMORY_LOG_SIZE_MASK = MAX_MEMORY_LOG_SIZE - 1
 
 type Config struct {
 	GroupID           uint64
@@ -35,8 +39,81 @@ type ClientEntry struct {
 	ResponseCache  CacheEntry
 }
 
+// CommitTable is a table of commiter counts for each operation
+// It is used to determine if an operation has been committed
+// by a majority of replicas
+//
+// CommitTable is a sliding window of MAX_MEMORY_LOG_SIZE
+// The window is stored in a circular buffer
+type CommitTable struct {
+	offset uint64
+	r      uint64
+	data   []uint64
+}
+
+func (c *CommitTable) Init(CommitNumber uint64) {
+	c.offset = CommitNumber
+	c.r = 0
+	c.data = make([]uint64, MAX_MEMORY_LOG_SIZE)
+}
+
+func (c *CommitTable) GetCommitCount(OperationNumber uint64) uint64 {
+	if OperationNumber < c.offset {
+		return math.MaxUint64
+	}
+	if OperationNumber >= c.offset+MAX_MEMORY_LOG_SIZE {
+		return math.MaxUint64
+	}
+
+	return c.data[(c.r+OperationNumber-c.offset)&MAX_MEMORY_LOG_SIZE_MASK]
+}
+
+func (c *CommitTable) IncrementCommitCount(OperationNumber uint64) (count uint64) {
+	if OperationNumber < c.offset {
+		return math.MaxUint64
+	}
+	if OperationNumber >= c.offset+MAX_MEMORY_LOG_SIZE {
+		return math.MaxUint64
+	}
+	v := &c.data[(c.r+OperationNumber-c.offset)&MAX_MEMORY_LOG_SIZE_MASK]
+
+	*v++
+	return *v
+}
+
+// Truncate deletes all entries before CommitNumber
+func (c *CommitTable) Truncate(CommitNumber uint64) {
+	if CommitNumber < c.offset {
+		return
+	}
+	if CommitNumber >= c.offset+MAX_MEMORY_LOG_SIZE {
+		return
+	}
+
+	index := (c.r + CommitNumber - c.offset) & MAX_MEMORY_LOG_SIZE_MASK
+	if index >= c.r {
+		// [     ^r#############^index     ]
+		// clear the data between r and index
+		for i := c.r; i < index; i++ {
+			c.data[i] = 0
+		}
+	} else {
+		// [######^index		 ^r############]
+		// clear the data after r and before index
+		for i := c.r; i < MAX_MEMORY_LOG_SIZE; i++ {
+			c.data[i] = 0
+		}
+		for i := uint64(0); i < index; i++ {
+			c.data[i] = 0
+		}
+	}
+	c.offset = CommitNumber
+	c.r = index
+}
+
 type VSRState struct {
 	Configuration Config
+
 	NodeID        uint64
 	ReplicaNumber uint64
 
@@ -48,12 +125,38 @@ type VSRState struct {
 	OperationNumber uint64
 	CommitNumberMAX uint64
 	CommitNumberMIN uint64
+	CommitTable     CommitTable
 
 	OpLog       MemoryLog[protocol.OperationEntry] // The log of operations
 	ClientTable map[uint64]ClientEntry
 
 	HeartbeatTick  uint64
 	ViewChangeTick uint64
+}
+
+func (v *VSRState) Init(config Config, nodeID uint64) {
+	v.Configuration = config
+	v.NodeID = nodeID
+	for i, peer := range v.Configuration.Peers {
+		if peer == v.NodeID {
+			v.ReplicaNumber = uint64(i)
+		}
+	}
+	v.ViewNumber = 0
+	v.StableView = 0
+	v.Status = Status_Normal
+	v.OperationNumber = 0
+	v.CommitNumberMAX = 0
+	v.CommitNumberMIN = 0
+	v.CommitTable.Init(0)
+	v.OpLog.ring.data = make([]protocol.OperationEntry, MAX_MEMORY_LOG_SIZE)
+	v.ClientTable = make(map[uint64]ClientEntry)
+	v.HeartbeatTick = 0
+	v.ViewChangeTick = 0
+}
+
+func (v *VSRState) QuorumSize() uint64 {
+	return v.ReplicaNumber/2 + 1
 }
 
 func (v *VSRState) Leader() uint64 {
@@ -224,6 +327,21 @@ func (v *VSRState) OnPrepareAcceptance(m *protocol.Message) (e errno.Errno) {
 	if v.NodeID != v.Leader() {
 		e = errno.ERRNO_NOTLEADER
 		return
+	}
+
+	// Assert: m.PrepareAcceptance.OperationNumber <= v.OperationNumber
+	if m.PrepareAcceptance.OperationNumber > v.OperationNumber {
+		e = errno.ERRNO_EARLYCOMMIT
+	}
+
+	// Get commit count
+	count := v.CommitTable.IncrementCommitCount(m.PrepareAcceptance.OperationNumber)
+	if count < math.MaxUint64 && count >= v.QuorumSize() {
+		// Commit operation
+		if v.CommitNumberMAX < m.PrepareAcceptance.OperationNumber {
+			v.CommitNumberMAX = m.PrepareAcceptance.OperationNumber
+		}
+		// TODO: Execute operation
 	}
 
 	return

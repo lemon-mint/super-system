@@ -8,4 +8,3 @@ plugins:
     opt:
       - paths=source_relative
       - features=pool+marshal+unmarshal+size
-      # - pool=v8.run/go/dsys/proto.Address

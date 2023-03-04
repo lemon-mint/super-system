@@ -35,9 +35,9 @@ type ProposeRejection struct {
 }
 
 type OperationEntry struct {
+	ViewNumber      uint64
 	OperationNumber uint64
 	Operation       []byte
-	ViewNumber      uint64
 }
 
 type Prepare struct {
