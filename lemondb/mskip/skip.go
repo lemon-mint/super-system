@@ -106,11 +106,18 @@ func NewSkipList(arena *uarena.UArena, seed uint64) *SkipList {
 		arena: arena,
 		seed:  seed,
 	}
+	if initskip(sk) != 0 {
+		return nil
+	}
+	return sk
+}
+
+func initskip(sk *SkipList) int {
 	sk.arena.Alloc(8 + 8 + 4 + MAX_HEIGHT*4) // Allocate space for tail node (not used)
 	sk.seed = splitmix64.Splitmix64(&sk.seed)
 	head := sk.arena.Alloc(8 + 8 + 4 + MAX_HEIGHT*4) // Allocate space for head node
 	if head == uarena.OutOfMemory {
-		return nil
+		return -1
 	}
 	sk.head = NodeRef(head)
 	sk.head.SetHeight(sk.arena, MAX_HEIGHT)
@@ -119,7 +126,7 @@ func NewSkipList(arena *uarena.UArena, seed uint64) *SkipList {
 	}
 	sk.head.SetKeyUint64(sk.arena, 0)
 	sk.head.SetValueUint64(sk.arena, 0)
-	return sk
+	return 0
 }
 
 func calcSize(height uint32, keySize, valueSize uint32) uint32 {
@@ -145,7 +152,7 @@ func (sk *SkipList) PrepareInsert(key, value []byte, ts uint64) NodeRef {
 	size := calcSize(uint32(height), uint32(len(key)), uint32(len(value)))
 	buffer := sk.arena.Alloc(size)
 	if buffer == uarena.OutOfMemory {
-		return 0
+		return InvalidNode
 	}
 	newNode := NodeRef(buffer)
 	newNode.SetHeight(sk.arena, uint32(height))
@@ -262,8 +269,8 @@ func (sk *SkipList) Delete(key []byte, ts uint64) bool {
 	return true
 }
 
-// Get returns the value for the given key.
-func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
+// seekLT returns the last node with a key < the given key and timestamp < the given timestamp.
+func (sk *SkipList) seekLT(key []byte, ts uint64) NodeRef {
 	x := sk.head
 	for i := uint32(MAX_HEIGHT - 1); i < MAX_HEIGHT; i-- {
 	L:
@@ -279,25 +286,103 @@ func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
 			case -1: // (key < nextKey)
 				break L
 			case 0: // (key == nextKey)
-				if ts > nextTS {
+				if ts >= nextTS { // (ts >= nextTS)
 					break L
 				}
 			}
 			x = next
 		}
 	}
+	// x.key < key && x.ts < ts
+	return x
+}
+
+// seekGE returns the first node with a key >= the given key and timestamp >= the given timestamp.
+func (sk *SkipList) seekGE(key []byte, ts uint64) NodeRef {
+	x := sk.seekLT(key, ts)
+	// x.key < key && x.ts < ts
 
 	next := x.Next(sk.arena, 0)
 	if next == 0 { // Reached tail
+		return InvalidNode
+	}
+
+	return next
+}
+
+// Get returns the value for the given key at the given timestamp.
+func (sk *SkipList) Get(key []byte, ts uint64) ([]byte, bool) {
+	x := sk.seekGE(key, ts)
+	if x == InvalidNode {
 		return nil, false
 	}
 
-	nextKey := next.Key(sk.arena)
+	nextKey := x.Key(sk.arena)
 	nextData := dataKey(nextKey)
 	nextTS := timestamp(nextKey)
-	if bytes.Equal(key, nextData) && ts >= nextTS && next.ValueUint64(sk.arena) != 0 {
-		return next.Value(sk.arena), true
+	if bytes.Equal(key, nextData) && ts >= nextTS && x.ValueUint64(sk.arena) != 0 {
+		return x.Value(sk.arena), true
 	}
 
 	return nil, false
+}
+
+func (sk *SkipList) Reset() {
+	sk.arena.Reset()
+	sk.head = 0
+	initskip(sk)
+}
+
+type Iterator struct {
+	sk *SkipList
+	x  NodeRef
+}
+
+func NewIterator(sk *SkipList) *Iterator {
+	return &Iterator{
+		sk: sk,
+		x:  sk.head.Next(sk.arena, 0),
+	}
+}
+
+func (it *Iterator) Valid() bool {
+	return it.x.IsValid()
+}
+
+func (it *Iterator) Key() []byte {
+	k := it.x.Key(it.sk.arena)
+	return dataKey(k)
+}
+
+func (it *Iterator) Value() []byte {
+	return it.x.Value(it.sk.arena)
+}
+
+func (it *Iterator) Timestamp() uint64 {
+	k := it.x.Key(it.sk.arena)
+	return timestamp(k)
+}
+
+func (it *Iterator) Seek(key []byte, ts uint64) {
+	it.x = it.sk.seekGE(key, ts)
+}
+
+func (it *Iterator) Next() {
+	it.x = it.x.Next(it.sk.arena, 0)
+}
+
+func (it *Iterator) Prev() {
+	if it.x == it.sk.head {
+		return
+	}
+
+	if !it.x.IsValid() {
+		panic("mskip: prev on invalid iterator")
+	}
+
+	key := it.x.Key(it.sk.arena)
+	keyData := dataKey(key)
+	KeyTS := timestamp(key)
+
+	it.x = it.sk.seekLT(keyData, KeyTS)
 }
