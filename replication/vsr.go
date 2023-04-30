@@ -130,6 +130,8 @@ type VSRState struct {
 	OpLog       MemoryLog[protocol.OperationEntry] // The log of operations
 	ClientTable map[uint64]ClientEntry
 
+	StateMachine StateMachine
+
 	HeartbeatTick  uint64
 	ViewChangeTick uint64
 }
@@ -341,8 +343,49 @@ func (v *VSRState) OnPrepareAcceptance(m *protocol.Message) (e errno.Errno) {
 		if v.CommitNumberMAX < m.PrepareAcceptance.OperationNumber {
 			v.CommitNumberMAX = m.PrepareAcceptance.OperationNumber
 		}
-		// TODO: Execute operation
 	}
+
+	return
+}
+
+func (v *VSRState) OnCommit(m *protocol.Message) (e errno.Errno) {
+	if m.Type != protocol.MT_Commit {
+		panic("Invalid message type, (unreachable)")
+	}
+
+	// Assert: v.Status == Status_Normal
+	if v.Status != Status_Normal {
+		e = errno.ERRNO_STATUSNOTNORMAL
+		return
+	}
+
+	// Assert: v.ViewNumber == v.StableView
+	if v.ViewNumber != v.StableView {
+		e = errno.ERRNO_NOTINSTABLEVIEW
+		return
+	}
+
+	// Assert: view == v.ViewNumber
+	if m.Commit.ViewNumber != v.ViewNumber {
+		e = errno.ERRNO_VIEWMISMATCH
+		return
+	}
+
+	// Assert: v.NodeID != v.Leader()
+	if v.NodeID == v.Leader() {
+		e = errno.ERRNO_NOTLEADER
+		return
+	}
+
+	// Assert: m.Commit.CommitNumber <= v.OperationNumber
+	if m.Commit.CommitNumber > v.OperationNumber {
+		e = errno.ERRNO_EARLYCOMMIT
+		return
+	}
+
+	//TODO: handle state catching up
+	v.CommitNumberMAX = m.Commit.CommitNumber
+	v.CommitNumberMIN = m.Commit.CommitNumber
 
 	return
 }

@@ -20,6 +20,7 @@ const (
 	MT_ProposeRejection
 	MT_PrepareRejection
 	MT_PrepareAcceptance
+	MT_Commit
 )
 
 type Propose struct {
@@ -56,6 +57,11 @@ type PrepareAcceptance struct {
 	OperationNumber uint64
 }
 
+type Commit struct {
+	ViewNumber   uint64
+	CommitNumber uint64
+}
+
 type Message struct {
 	Source            uint64
 	GroupID           uint64
@@ -65,6 +71,7 @@ type Message struct {
 	PrepareAcceptance `gobe_enum:"Type=MT_PrepareAcceptance"`
 	ProposeRejection  `gobe_enum:"Type=MT_ProposeRejection"`
 	PrepareRejection  `gobe_enum:"Type=MT_PrepareRejection"`
+	Commit            `gobe_enum:"Type=MT_Commit"`
 }
 
 var _MessagePool = sync.Pool{
